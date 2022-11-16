@@ -39,7 +39,7 @@ assign pd_taken_stat = (opc == `OPC_BR)?
 
 assign pd_off = (opc == `OPC_BR)? 
     ({{20{pd_inst[31]}}, pd_inst[7], pd_inst[30:25], pd_inst[11:8], 1'b0}):
-    ((opc != `OPC_JAL)? `ZERO_WORD:
+    ((opc != `OPC_JAL)? `NEXT_PC_INC:
     {{12{pd_inst[31]}}, pd_inst[19:12], pd_inst[20], pd_inst[30:21], 1'b0});
 
 always @(posedge clk) begin
