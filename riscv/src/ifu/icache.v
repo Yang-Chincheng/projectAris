@@ -29,12 +29,10 @@ module icache(
            output wire [`WORD_TP] hit_data,
 
            output reg  mem_rd_ena,
-           output wire [`ADDR_TP] mem_rd_addr,
+           output reg [`ADDR_TP] mem_rd_addr,
            input  wire mem_rd_done,
            input  wire [`LINE_TP] mem_rd_data
        );
-
-assign mem_rd_addr = rd_addr;
 
 reg valid [`LINE_NUM-1 : 0];
 reg [`TAG_RG]  cache_tag [`LINE_NUM-1 : 0];
@@ -63,10 +61,11 @@ always @(posedge clk) begin
     end
     else if (!hit) begin
         mem_rd_ena <= `TRUE;
+        mem_rd_addr <= rd_addr;
     end
     else if (!mem_rd_done) begin
         valid[idx] <= `TRUE;
-        cache_tag[idx] <= rd_addr[`TAG_RG];
+        cache_tag[idx] <= mem_rd_addr[`TAG_RG];
         cache_dat[idx] <= mem_rd_data;
     end
 
