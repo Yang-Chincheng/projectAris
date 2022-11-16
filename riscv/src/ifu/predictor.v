@@ -14,11 +14,11 @@ module predictor #(
            input wire [`ADDR_TP] pd_pc,
            input wire [`WORD_TP] pd_inst,
 
-           output wire pd_taken_sta,
+           output wire pd_taken_stat,
            output wire [`WORD_TP] pd_off,
 
            input wire fb_ena,
-           input wire fb_taken_sta,
+           input wire fb_taken_stat,
            input wire [`ADDR_TP] fb_pc
        );
 
@@ -33,7 +33,7 @@ wire [`ADDR_HASH] pd_pc_hash = pd_pc[`ADDR_HASH];
 wire [`ADDR_HASH] fb_pc_hash = fb_pc[`ADDR_HASH];
 
 wire [`OPC_RG] opc = pd_pc[`OPC_RG];
-assign pd_taken_sta = (opc == `OPC_BR)? 
+assign pd_taken_stat = (opc == `OPC_BR)? 
     (bht[pd_pc_hash] >= WEK_TK) :
     ((opc == `OPC_JAL)? `TRUE: `FALSE);
 
@@ -52,7 +52,7 @@ always @(posedge clk) begin
         // do nothing
     end
     else if (fb_ena) begin
-        if (fb_taken_sta) begin
+        if (fb_taken_stat) begin
             bht[fb_pc_hash] <= (bht[fb_pc_hash] < STR_TK)? bht[fb_pc_hash] + 1: STR_TK;
         end
         else begin
