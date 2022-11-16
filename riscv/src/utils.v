@@ -1,6 +1,8 @@
 `define TRUE 1'b1
 `define FALSE 1'b0
 
+`define NEXT_PC_INC 4
+
 `define INST_LN 32
 `define INST_TP `INST_LN-1:0
 
