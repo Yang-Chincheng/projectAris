@@ -1,0 +1,72 @@
+`include "../utils.v"
+
+`define REG_BIT `REG_IDX_LN
+`define REG_SIZE (1 << `REG_BIT)
+
+/**
+ * TODO:
+ * (1) protect #0 register
+ *
+ */
+
+module regfile #(
+    REG_SIZE = `REG_SIZE,
+    REG_BIT = `REG_BIT
+) (
+    input wire clk,
+    input wire rst,
+    input wire rsy,
+
+    input wire reg_en,
+    input wire reg_st,
+    input wire reg_rb,
+
+    // idu
+    input wire [`REG_IDX_TP] id_rs1,
+    input wire [`REG_IDX_TP] id_rs2,
+    output wire [`ROB_IDX_TP] id_src1,
+    output wire [`ROB_IDX_TP] id_src2,
+    output wire [`WORD_TP] id_val1,
+    output wire [`WORD_TP] id_val2,
+    
+    input wire id_rn_ena,
+    input wire [`REG_IDX_TP] id_rn_rd,
+    input wire [`ROB_IDX_TP] id_rn_idx,
+
+    // rob
+    input wire rob_wr_ena,
+    input wire [`REG_IDX_TP] rob_wr_rd,
+    input wire [`WORD_TP] rob_wr_val
+);
+
+reg [`ROB_IDX_TP] src[REG_SIZE-1:0];
+reg [`WORD_TP]    val[REG_SIZE-1:0];
+
+assign id_src1 = ((id_rn_ena && id_rn_rd == id_rs1)? id_rn_idx
+    : ((rob_wr_ena && rob_wr_rd == id_rs1)? `ZERO_ROB_IDX: src[id_rs1])); 
+assign id_src2 = ((id_rn_ena && id_rn_rd == id_rs2)? id_rn_idx
+    : ((rob_wr_ena && rob_wr_rd == id_rs2)? `ZERO_ROB_IDX: src[id_rs2])); 
+assign id_val1 = ((rob_wr_ena && rob_wr_rd == id_rs1)? rob_wr_val: val[id_rs1]);
+assign id_val2 = ((rob_wr_ena && rob_wr_rd == id_rs2)? rob_wr_val: val[id_rs2]);
+
+integer i;
+
+always @(posedge clk) begin
+    if (rst || reg_rb) begin
+        for (i = 0; i < REG_SIZE; i++) begin
+            src[i] <= `ZERO_ROB_IDX;
+            val[i] <= `ZERO_WORD;
+        end
+    end
+    else if (!reg_en || reg_st) begin
+        // STALL
+    end
+    else if (id_rn_ena) begin
+        src[id_rn_rd] <= id_rn_idx;
+    end
+    else if (rob_wr_ena) begin
+        val[rob_wr_rd] <= rob_wr_val;
+    end
+end
+
+endmodule

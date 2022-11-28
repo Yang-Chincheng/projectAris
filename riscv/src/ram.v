@@ -1,4 +1,5 @@
 // implements 128KB of on-board RAM
+`include "common/block_ram/block_ram.v"
 
 module ram
 #(

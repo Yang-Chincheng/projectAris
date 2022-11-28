@@ -1,6 +1,9 @@
 `include "../utils.v"
 
 `define ADDR_HASH 9:2
+`define OPC_RG 6:0
+`define OPC_BR 'h63
+`define OPC_JAL 'h6f
 
 module predictor #(
            BHT_BIT = 2,
@@ -9,16 +12,16 @@ module predictor #(
            input wire clk,
            input wire rst,
 
-           input wire pd_ena,
+           input wire pd_valid,
 
            input wire [`ADDR_TP] pd_pc,
            input wire [`WORD_TP] pd_inst,
 
-           output wire pd_taken_stat,
+           output wire pd_tk,
            output wire [`WORD_TP] pd_off,
 
            input wire fb_ena,
-           input wire fb_taken_stat,
+           input wire fb_tk,
            input wire [`ADDR_TP] fb_pc
        );
 
@@ -33,7 +36,7 @@ wire [`ADDR_HASH] pd_pc_hash = pd_pc[`ADDR_HASH];
 wire [`ADDR_HASH] fb_pc_hash = fb_pc[`ADDR_HASH];
 
 wire [`OPC_RG] opc = pd_pc[`OPC_RG];
-assign pd_taken_stat = (opc == `OPC_BR)? 
+assign pd_tk = (opc == `OPC_BR)? 
     (bht[pd_pc_hash] >= WEK_TK) :
     ((opc == `OPC_JAL)? `TRUE: `FALSE);
 
@@ -48,11 +51,11 @@ always @(posedge clk) begin
             bht[i] = 2'b0;
         end
     end
-    else if (!pd_ena) begin
+    else if (!pd_valid) begin
         // do nothing
     end
     else if (fb_ena) begin
-        if (fb_taken_stat) begin
+        if (fb_tk) begin
             bht[fb_pc_hash] <= (bht[fb_pc_hash] < STR_TK)? bht[fb_pc_hash] + 1: STR_TK;
         end
         else begin
