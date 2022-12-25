@@ -1,4 +1,7 @@
-`include "../utils.v"
+`ifndef SLB_V_ 
+`define SLB_V_ 
+
+`include "/home/Modem514/projectAris/riscv/src/utils.v"
 
 /**
  * TODO:
@@ -12,8 +15,8 @@
 `define SLB_SIZE (1 << `SLB_BIT)
 
 module SLB #(
-    SLB_BIT = `SLB_BIT,
-    SLB_SIZE = `SLB_SIZE
+    parameter SLB_BIT = `SLB_BIT,
+    parameter SLB_SIZE = `SLB_SIZE
 ) (
     input wire clk,
     input wire rst,
@@ -26,7 +29,7 @@ module SLB #(
     output wire slb_empty,
 
     // idu
-    input wire id_ena,
+    input wire id_valid,
     input wire [`INST_OPT_TP] id_opt,
     input wire [`ROB_IDX_TP] id_src1,
     input wire [`ROB_IDX_TP] id_src2,
@@ -35,26 +38,29 @@ module SLB #(
     input wire [`WORD_TP] id_imm,
     input wire [`ROB_IDX_TP] id_rob_idx,
     
-    // dcache
-    output reg cache_rd_ena,
-    output reg [`ADDR_TP] cache_rd_addr,
-    output reg [`INST_OPT_TP] cache_rd_opt,  
-    input wire cache_rd_hit,
-    input wire [`WORD_TP] cache_rd_hit_dat,
+    // memctrl
+    output reg mc_ld_ena,
+    output reg [`ADDR_TP] mc_ld_addr,
+    output reg [3:0] mc_ld_len,
+    output reg [`ROB_IDX_TP] mc_ld_src,
+    input wire mc_ld_done,
+    input wire [`WORD_TP] mc_ld_data,
 
     // cdb
     input wire cdb_alu_valid,
     input wire [`ROB_IDX_TP] cdb_alu_src,
     input wire [`WORD_TP] cdb_alu_val,
-    output reg cdb_ld_valid,
-    output reg [`ROB_IDX_TP] cdb_ld_src,
-    output reg [`WORD_TP] cdb_ld_val,
+    input wire cdb_ld_valid,
+    input wire [`ROB_IDX_TP] cdb_ld_src,
+    input wire [`WORD_TP] cdb_ld_val,
 
     // rob
     output reg rob_ena,
     output reg [`ROB_IDX_TP] rob_src,
     output reg [`WORD_TP] rob_val,
-    output reg [`ADDR_TP] rob_addr
+    output reg [`ADDR_TP] rob_addr,
+    output wire [`ROB_IDX_TP] rob_st_idx,
+    input wire rob_st_rdy
 );
 
 parameter IDLE = 0, LOADING = 1;
@@ -66,7 +72,7 @@ reg slb_push_flag;
 reg slb_pop_flag;
 
 wire [SLB_BIT-1:0] slb_siz = lag_slb_siz + (slb_push_flag? 1: 0) + (slb_pop_flag? -1: 0);
-assign slb_full  = (slb_siz == SLB_SIZE);
+assign slb_full  = (slb_siz >= SLB_SIZE - 3);
 assign slb_empty = (slb_siz == 0);
 
 reg [SLB_BIT-1:0] slb_head; // queue element index [slb_head, slb_tail) 
@@ -79,25 +85,31 @@ reg [`ROB_IDX_TP]  src2[SLB_SIZE-1:0];
 reg [`WORD_TP]     val1[SLB_SIZE-1:0];
 reg [`WORD_TP]     val2[SLB_SIZE-1:0];
 reg [`WORD_TP]     imm [SLB_SIZE-1:0];
-reg [`ROB_IDX_TP]  idx [SLB_SIZE-1:0];
+reg [`ROB_IDX_TP]  dest[SLB_SIZE-1:0];
+reg                isld[SLB_SIZE-1:0];
 
 integer i;
 
-wire [`ROB_IDX_TP] upd_src1 = (cdb_alu_valid && cdb_alu_src == id_src1? `ZERO_ROB_IDX
-    : (cdb_ld_valid && cdb_ld_src == id_src1? `ZERO_ROB_IDX: id_src1)); 
-wire [`ROB_IDX_TP] upd_src2 = (cdb_alu_valid && cdb_alu_src == id_src2? `ZERO_ROB_IDX
-    : (cdb_ld_valid && cdb_ld_src == id_src2? `ZERO_ROB_IDX: id_src2)); 
-wire [`WORD_TP] upd_val1 = (cdb_alu_valid && cdb_alu_src == id_src1? cdb_alu_val
-    : (cdb_ld_valid && cdb_ld_src == id_src1? cdb_ld_val: id_val1));
-wire [`WORD_TP] upd_val2 = (cdb_alu_valid && cdb_alu_src == id_src2? cdb_alu_val
-    : (cdb_ld_valid && cdb_ld_src == id_src2? cdb_ld_val: id_val2));
+wire [`ROB_IDX_TP] upd_src1 = ((cdb_alu_valid && cdb_alu_src == id_src1)? `ZERO_ROB_IDX
+    : ((cdb_ld_valid && cdb_ld_src == id_src1)? `ZERO_ROB_IDX: id_src1)); 
+wire [`ROB_IDX_TP] upd_src2 = ((cdb_alu_valid && cdb_alu_src == id_src2)? `ZERO_ROB_IDX
+    : ((cdb_ld_valid && cdb_ld_src == id_src2)? `ZERO_ROB_IDX: id_src2)); 
+wire [`WORD_TP] upd_val1 = ((cdb_alu_valid && cdb_alu_src == id_src1)? cdb_alu_val
+    : ((cdb_ld_valid && cdb_ld_src == id_src1)? cdb_ld_val: id_val1));
+wire [`WORD_TP] upd_val2 = ((cdb_alu_valid && cdb_alu_src == id_src2)? cdb_alu_val
+    : ((cdb_ld_valid && cdb_ld_src == id_src2)? cdb_ld_val: id_val2));
+
+
+wire ld_rdy = isld[slb_head] && src1[slb_head] == `ZERO_ROB_IDX;
+wire st_rdy = !isld[slb_head] && src1[slb_head] == `ZERO_ROB_IDX && src2[slb_head] == `ZERO_ROB_IDX;
 
 always @(posedge clk) begin
-    cdb_ld_valid <= `FALSE;
     rob_ena <= `FALSE;
-  
+    slb_push_flag <= `FALSE;
+    slb_pop_flag <= `FALSE;
+        
+
     if (rst || slb_rb) begin
-        cache_rd_ena <= `FALSE;
         lag_slb_siz <= 0;
         slb_push_flag <= `FALSE;
         slb_pop_flag <= `FALSE;
@@ -112,7 +124,7 @@ always @(posedge clk) begin
             val1[i] <= `ZERO_WORD;
             val2[i] <= `ZERO_WORD;
             imm [i] <= `ZERO_WORD;
-            idx [i] <= `ZERO_ROB_IDX;
+            dest[i] <= `ZERO_ROB_IDX;
         end
     end
     else if (!rdy || !slb_en || slb_st) begin
@@ -122,8 +134,7 @@ always @(posedge clk) begin
         slb_push_flag <= `FALSE;
         slb_pop_flag <= `FALSE;
         // issue
-        if (!slb_full) begin
-            slb_push_flag <= `TRUE;
+        if (id_valid) begin
             busy[slb_tail] <= `TRUE;
             opt [slb_tail] <= id_opt;
             src1[slb_tail] <= upd_src1;
@@ -131,36 +142,41 @@ always @(posedge clk) begin
             val1[slb_tail] <= upd_val1;
             val2[slb_tail] <= upd_val2;
             imm [slb_tail] <= id_imm;
-            idx [slb_tail] <= id_rob_idx;
+            dest[slb_tail] <= id_rob_idx;
+            isld[slb_tail] <= (id_opt >= `OPT_LB && id_opt <= `OPT_LHU); 
+            slb_push_flag <= `TRUE;
             slb_tail <= slb_tail + 1;
         end
         // execute
         if (!slb_empty) begin
             // load
-            if (slb_stat == IDLE && opt[slb_head] >= `OPT_LB && opt[slb_head] <= `OPT_LHU) begin
-                slb_pop_flag <= `TRUE;
+            if (slb_stat == IDLE && ld_rdy) begin
                 slb_stat <= LOADING;
+                mc_ld_ena <= `TRUE;
+                mc_ld_addr <= val1[slb_head] + imm[slb_head];
+                mc_ld_len <= (opt[slb_head] == `OPT_LB? 0: (opt[slb_head] == `OPT_LH? 1: 3));
+                slb_pop_flag <= `TRUE;
                 slb_head <= slb_head + 1;
-                cache_rd_ena  <= `TRUE;
-                cache_rd_addr <= val1[slb_head] + imm[slb_head];
-                cache_rd_opt  <= opt[slb_head];
-                cache_rd_idx  <= idx[slb_head];
                 busy[slb_head] <= `FALSE;
             end
             // store
-            if (opt[slb_head] >= `OPT_SB && opt[slb_head] <= `OPT_SW) begin
-                slb_pop_flag <= `TRUE;
-                rob_ena <= `TRUE;
-                rob_src <= src2[slb_head];
-                rob_addr <= val1[slb_head] + imm[slb_head];
+            if (st_rdy) begin
+                if (rob_st_rdy) begin
+                    slb_pop_flag <= `TRUE;
+                    slb_head <= slb_head + 1;
+                    busy[slb_head] <= `FALSE;
+                end
+                else begin
+                    rob_ena <= `TRUE;
+                    rob_src <= src2[slb_head];
+                    rob_val <= val2[slb_head];
+                    rob_addr <= val1[slb_head] + imm[slb_head];
+                end
             end
         end
-        if (slb_stat == LOADING && cache_rd_hit) begin
-            cache_rd_ena <= `FALSE;
-            cdb_ld_valid <= `TRUE;
-            cdb_ld_src <= cache_rd_idx;
-            cdb_ld_val <= cache_rd_hit_dat;
+        if (slb_stat == LOADING && mc_ld_done) begin
             slb_stat <= IDLE;
+            mc_ld_ena <= `FALSE;
         end
         // update
         if (cdb_alu_valid && !slb_empty) begin
@@ -181,3 +197,5 @@ always @(posedge clk) begin
 end
     
 endmodule
+
+`endif 

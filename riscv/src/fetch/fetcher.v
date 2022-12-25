@@ -1,5 +1,7 @@
-`include "../utils.v"
+`ifndef FETCHER_V_ 
+`define FETCHER_V_ 
 
+`include "/home/Modem514/projectAris/riscv/src/utils.v"
 
 module fetcher(
            input wire clk, // system clock
@@ -17,7 +19,6 @@ module fetcher(
            input wire [`WORD_TP] cache_hit_inst,
 
            // bp
-           output wire bp_ena,
            output wire [`ADDR_TP] bp_pb_pc,
            output wire [`WORD_TP] bp_pb_inst,
            input wire bp_pd_tk,
@@ -41,7 +42,6 @@ integer i;
 assign cache_rd_en = if_en;
 assign cache_rd_addr = pc;
 
-assign bp_ena = if_en;
 assign bp_pb_pc = pc;
 assign bp_pb_inst = cache_hit_inst;
 
@@ -64,7 +64,6 @@ always @(posedge clk) begin
         // send inst to idu
         id_inst <= cache_hit_inst;
         id_cur_pc <= pc;
-        // id_nex_pc <= (bp_pd_tk? jump_pc: succ_pc);
         // TODO: special case for JALR
         id_mis_pc <= (bp_pd_tk? succ_pc: jump_pc);
         id_pd_tk <= bp_pd_tk;
@@ -77,3 +76,5 @@ end
 
 endmodule
 
+
+`endif 

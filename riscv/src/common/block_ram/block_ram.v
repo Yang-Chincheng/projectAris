@@ -24,6 +24,9 @@
 *  Various generic, inferred block ram descriptors.
 ***************************************************************************************************/
 
+`ifndef BLOCK_RAM_V_
+`define BLOCK_RAM_V_
+
 // Dual port RAM with synchronous read.  Modified version of listing 12.4 in "FPGA Prototyping by
 // Verilog Examples," itself a modified version of XST 8.11 v_rams_11.
 module dual_port_ram_sync
@@ -94,4 +97,6 @@ initial begin
 end
 
 endmodule
+
+`endif
 

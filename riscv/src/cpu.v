@@ -41,16 +41,33 @@ module cpu (
 // - 0x30004 read: read clocks passed since cpu starts (in dword, 4 bytes)
 // - 0x30004 write: indicates program stop (will output '\0' through uart tx)
 
-wire icache_rd_en;
-wire [`ADDR_TP] icache_rd_addr;
-wire bp_ena;
-wire [`ADDR_TP] bp_pb_pc;
-wire [`WORD_TP] bp_pb_inst;
-wire id_ena; // inst decode unit enable signal
-wire [`WORD_TP] id_inst; // inst sent to idu
-wire [`ADDR_TP] id_cur_pc; // pc sent to idu
-wire [`ADDR_TP] id_mis_pc; // rollback pc target when mispredicted
-wire id_pd_tk; // reserved predict result for feedback
+wire cpu_rb_signal;
+wire cdb_alu_tk;
+wire cdb_alu_valid;
+wire [`ROB_IDX_TP] cdb_alu_src;
+wire [`WORD_TP] cdb_alu_val;
+wire cdb_ld_valid;
+wire [`ROB_IDX_TP] cdb_ld_src;
+wire [`WORD_TP] cdb_ld_val;
+
+wire id_to_if_full;
+wire [`ADDR_TP] rob_to_if_rb_pc;
+
+wire [`ADDR_TP] if_to_icache_rd_addr;
+wire if_to_icache_rd_ena;
+wire icache_to_if_hit;
+wire [`WORD_TP] icache_to_if_inst;
+
+wire [`ADDR_TP] if_to_bp_pc;
+wire [`WORD_TP] if_to_bp_inst;
+wire bp_to_if_tk;
+wire [`ADDR_TP] bp_to_if_off;
+
+wire if_to_id_ena;
+wire [`WORD_TP] if_to_id_inst;
+wire [`ADDR_TP] if_to_id_cur_pc;
+wire [`ADDR_TP] if_to_id_mis_pc;
+wire if_to_id_tk;
 
 fetcher cpu_fetcher(
     .clk(clk_in),
@@ -58,79 +75,107 @@ fetcher cpu_fetcher(
     .rdy(rdy_in),
 
     .if_en(`TRUE),
-    .if_st(rob_full || slb_full || rs_full),
-    .if_rb(rob_rb_ena),
+    .if_st(id_to_if_full),
+    .if_rb(cpu_rb_signal),
 
-    .cache_rd_en(icache_rd_en),
-    .cache_rd_addr(icache_rd_addr),
-    .cache_hit(if_cache_hit),
-    .cache_hit_inst(if_hit_word),
+    .cache_rd_en(if_to_icache_rd_ena),
+    .cache_rd_addr(if_to_icache_rd_addr),
+    .cache_hit(icache_to_if_hit),
+    .cache_hit_inst(icache_to_if_inst),
 
-    .bp_ena(bp_ena),
-    .bp_pd_pc(bp_pb_pc),
-    .bp_pb_inst(bp_pb_inst),
-    .bp_pd_tk(pb_tk),
-    .bp_pd_off(pd_off),
+    .bp_pb_pc(if_to_bp_pc),
+    .bp_pb_inst(if_to_bp_inst),
+    .bp_pd_tk(bp_to_if_tk),
+    .bp_pd_off(bp_to_if_off),
 
-    .id_ena(id_ena),
-    .id_inst(id_inst),
-    .id_cur_pc(id_cur_pc),
-    .id_mis_pc(id_mis_pc),
-    .id_pd_tk(id_pd_tk),
+    .id_ena(if_to_id_ena),
+    .id_inst(if_to_id_inst),
+    .id_cur_pc(if_to_id_cur_pc),
+    .id_mis_pc(if_to_id_mis_pc),
+    .id_pd_tk(if_to_id_tk),
 
-    .rob_rb_pc(if_rb_pc)
+    .rob_rb_pc(rob_to_if_rb_pc)
 );
 
-wire pd_tk;
-wire [`WORD_TP] pd_off;
+wire rob_to_bp_fb_ena;
+wire rob_to_bp_fb_tk;
+wire [`WORD_TP] rob_to_bp_fb_pc;
 
 predictor cpu_predictor(
     .clk(clk_in),
     .rst(rst_in),
+    .rdy(rdy_in),
 
-    .pd_valid(bp_ena),
-    .pd_pc(bp_pb_pc),
-    .pd_inst(bp_pb_inst),
+    .pd_pc(if_to_bp_pc),
+    .pd_inst(if_to_bp_inst),
     
-    .pd_tk(pd_tk),
-    .pd_off(pd_off),
+    .pd_tk(bp_to_if_tk),
+    .pd_off(bp_to_if_off),
 
-    .fb_ena(bp_fb_ena),
-    .fb_tk(bp_fb_tk),
-    .fb_pc(bp_fb_pc)
+    .fb_ena(rob_to_bp_fb_ena),
+    .fb_tk(rob_to_bp_fb_tk),
+    .fb_pc(rob_to_bp_fb_pc)
 );
 
-wire [`WORD_TP] dec_inst;
-wire [`REG_IDX_TP] reg_rs1;
-wire [`REG_IDX_TP] reg_rs2;
-wire reg_rn_ena;
-wire [`REG_IDX_TP] reg_rn_rd;
-wire [`ROB_IDX_TP] reg_rn_idx;
-wire rs_ena;
-wire [`INST_OPT_TP] rs_opt;
-wire [`ROB_IDX_TP] rs_src1;
-wire [`ROB_IDX_TP] rs_src2;
-wire [`WORD_TP] rs_val1;
-wire [`WORD_TP] rs_val2;
-wire [`WORD_TP] rs_imm;
-wire [`ROB_IDX_TP] rs_rob_idx;
-wire lsb_ena;
-wire [`INST_OPT_TP] lsb_opt;
-wire [`ROB_IDX_TP] lsb_src1;
-wire [`ROB_IDX_TP] lsb_src2;
-wire [`WORD_TP] lsb_val1;
-wire [`WORD_TP] lsb_val2;
-wire [`WORD_TP] lsb_imm;
-wire [`ROB_IDX_TP] rob_src1;
-wire [`ROB_IDX_TP] rob_src2;
-wire rob_ena;
-wire [`INST_OPT_TP] rob_opt;
-wire [`REG_IDX_TP] rob_dest;
-wire [`WORD_TP] rob_data;
-wire [`ADDR_TP] rob_addr;
-wire [`ADDR_TP] rob_cur_pc;
-wire [`ADDR_TP] rob_mis_pc;
-wire rob_pb_tk_stat;
+wire [`WORD_TP] id_to_dec_inst;
+wire [`INST_TY_TP] dec_to_id_ty;
+wire [`INST_OPT_TP] dec_to_id_opt;
+wire [`REG_IDX_TP] dec_to_id_rd;
+wire [`REG_IDX_TP] dec_to_id_rs1;
+wire [`REG_IDX_TP] dec_to_id_rs2;
+wire [`WORD_TP] dec_to_id_imm;
+wire dec_to_id_isls;
+
+wire [`REG_IDX_TP] id_to_reg_rs1;
+wire [`REG_IDX_TP] id_to_reg_rs2;
+wire [`ROB_IDX_TP] reg_to_id_src1;
+wire [`ROB_IDX_TP] reg_to_id_src2;
+wire [`WORD_TP] reg_to_id_val1;
+wire [`WORD_TP] reg_to_id_val2;
+
+wire id_to_reg_rn_ena;
+wire [`REG_IDX_TP] id_to_reg_rn_rd;
+wire [`ROB_IDX_TP] id_to_reg_rn_idx;
+
+wire rs_to_id_full;
+wire id_to_rs_ena;
+wire [`INST_OPT_TP] id_to_rs_opt;
+wire [`ROB_IDX_TP] id_to_rs_src1;
+wire [`ROB_IDX_TP] id_to_rs_src2;
+wire [`WORD_TP] id_to_rs_val1;
+wire [`WORD_TP] id_to_rs_val2;
+wire [`WORD_TP] id_to_rs_imm;
+wire [`ROB_IDX_TP] id_to_rs_rob_idx;
+
+wire slb_to_id_full;
+wire id_to_slb_ena;
+wire [`INST_OPT_TP] id_to_slb_opt;
+wire [`ROB_IDX_TP] id_to_slb_src1;
+wire [`ROB_IDX_TP] id_to_slb_src2;
+wire [`WORD_TP] id_to_slb_val1;
+wire [`WORD_TP] id_to_slb_val2;
+wire [`WORD_TP] id_to_slb_imm;
+wire [`ROB_IDX_TP] id_to_slb_rob_idx;
+wire id_to_slb_isld;
+
+wire rob_to_id_full;
+wire [`ROB_IDX_TP] rob_to_id_idx;
+
+wire [`ROB_IDX_TP] id_to_rob_src1;
+wire [`ROB_IDX_TP] id_to_rob_src2;
+wire rob_to_id_src1_rdy;
+wire rob_to_id_src2_rdy;
+wire [`WORD_TP] rob_to_id_val1;
+wire [`WORD_TP] rob_to_id_val2;
+
+wire id_to_rob_ena;
+wire [`INST_OPT_TP] id_to_rob_opt;
+wire [`REG_IDX_TP] id_to_rob_dest;
+wire [`WORD_TP] id_to_rob_data;
+wire [`ADDR_TP] id_to_rob_addr;
+wire [`ADDR_TP] id_to_rob_cur_pc;
+wire [`ADDR_TP] id_to_rob_mis_pc;
+wire id_to_rob_pb_tk_stat;
 
 dispatcher cpu_dispatcher(
     .clk(clk_in), // system clock
@@ -139,75 +184,78 @@ dispatcher cpu_dispatcher(
 
     .id_en(`TRUE), // inst decode unit enabling signal
     .id_st(`FALSE), // inst decode unit stall signal
-    .id_rb(rob_rb_ena), // inst decode unit rollback signal
+    .id_rb(cpu_rb_signal), // inst decode unit rollback signal
+    .id_full(id_to_if_full),
 
     // ifu
-    .if_inst(id_inst), // inst from ifu
-    .if_cur_pc(id_cur_pc), // pc from ifu
-    .if_mis_pc(id_mis_pc), // rollback target from ifu
-    .if_pb_tk_stat(id_pb_tk), // predict taken status from ifu
+    .if_valid(if_to_id_ena),
+    .if_inst(if_to_id_inst), // inst from ifu
+    .if_cur_pc(if_to_id_cur_pc), // pc from ifu
+    .if_mis_pc(if_to_id_mis_pc), // rollback target from ifu
+    .if_pb_tk_stat(if_to_id_tk), // predict taken status from ifu
 
     // dec
-    .dec_inst(dec_inst),
-    .dec_ty(dec_ty),
-    .dec_opt(dec_opt),
-    .dec_rd(dec_rd),
-    .dec_rs1(dec_rs1),
-    .dec_rs2(dec_rs2),
-    .dec_imm(dec_imm),
-    .dec_is_ls(),
+    .dec_inst(id_to_dec_inst),
+    .dec_ty(dec_to_id_ty),
+    .dec_opt(dec_to_id_opt),
+    .dec_rd(dec_to_id_rd),
+    .dec_rs1(dec_to_id_rs1),
+    .dec_rs2(dec_to_id_rs2),
+    .dec_imm(dec_to_id_imm),
+    .dec_is_ls(dec_to_id_isls),
 
     // reg
-    .reg_rs1(reg_rs1),
-    .reg_rs2(reg_rs2),
-    .reg_src1(id_src1),
-    .reg_src2(id_src2),
-    .reg_val1(id_val1),
-    .reg_val2(id_val2),
+    .reg_rs1(id_to_reg_rs1),
+    .reg_rs2(id_to_reg_rs2),
+    .reg_src1(reg_to_id_src1),
+    .reg_src2(reg_to_id_src2),
+    .reg_val1(reg_to_id_val1),
+    .reg_val2(reg_to_id_val2),
     
-    .reg_rn_ena(reg_rn_ena),
-    .reg_rn_rd(reg_rn_rd),
-    .reg_rn_idx(reg_rn_idx),
+    .reg_rn_ena(id_to_reg_rn_ena),
+    .reg_rn_rd(id_to_reg_rn_rd),
+    .reg_rn_idx(id_to_reg_rn_idx),
     
     // rs
-    .rs_full(rs_full),
-    .rs_ena(rs_ena),
-    .rs_opt(rs_opt),
-    .rs_src1(rs_src1),
-    .rs_src2(rs_src2),
-    .rs_val1(rs_val1),
-    .rs_val2(rs_val2),
-    .rs_imm(rs_imm),  
-    .rs_rob_idx(rs_rob_idx),
+    .rs_full(rs_to_id_full),
+    .rs_ena(id_to_rs_ena),
+    .rs_opt(id_to_rs_opt),
+    .rs_src1(id_to_rs_src1),
+    .rs_src2(id_to_rs_src2),
+    .rs_val1(id_to_rs_val1),
+    .rs_val2(id_to_rs_val2),
+    .rs_imm(id_to_rs_imm),  
+    .rs_rob_idx(id_to_rs_rob_idx),
 
-    // lsb
-    .lsb_full(lsb_full),
-    .lsb_ena(lsb_ena),
-    .lsb_opt(lsb_opt),
-    .lsb_src1(lsb_src1),
-    .lsb_src2(lsb_src2),
-    .lsb_val1(lsb_val1),
-    .lsb_val2(lsb_val2),
-    .lsb_imm(lsb_imm), 
-    .lsb_rob_idx(lsb_rob_idx),
+    // slb
+    .slb_full(slb_to_id_full),
+    .slb_ena(id_to_slb_ena),
+    .slb_opt(id_to_slb_opt),
+    .slb_src1(id_to_slb_src1),
+    .slb_src2(id_to_slb_src2),
+    .slb_val1(id_to_slb_val1),
+    .slb_val2(id_to_slb_val2),
+    .slb_imm(id_to_slb_imm), 
+    .slb_rob_idx(id_to_slb_rob_idx),
+    .slb_isld(id_to_slb_isld),
 
     // rob
-    .rob_full(rob_full),
-    .rob_idx(rob_idx),
-    .rob_src1(rob_src1),
-    .rob_src2(rob_src2),
-    .rob_src1_rdy(id_src1_rdy),
-    .rob_src2_rdy(id_src2_rdy),
-    .rob_val1(id_val1),
-    .rob_val2(id_val2),
-    .rob_ena(rob_ena),
-    .rob_opt(rob_opt),
-    .rob_dest(rob_dest),
-    .rob_data(rob_data),
-    .rob_addr(rob_addr),
-    .rob_cur_pc(rob_cur_pc),
-    .rob_mis_pc(rob_mis_pc),
-    .rob_pb_tk_stat(rob_pb_tk_stat),
+    .rob_full(rob_to_id_full),
+    .rob_idx(rob_to_id_idx),
+    .rob_src1(id_to_rob_src1),
+    .rob_src2(id_to_rob_src2),
+    .rob_src1_rdy(rob_to_id_src1_rdy),
+    .rob_src2_rdy(rob_to_id_src2_rdy),
+    .rob_val1(rob_to_id_val1),
+    .rob_val2(rob_to_id_val2),
+    .rob_ena(id_to_rob_ena),
+    .rob_opt(id_to_rob_opt),
+    .rob_dest(id_to_rob_dest),
+    .rob_data(id_to_rob_data),
+    .rob_addr(id_to_rob_addr),
+    .rob_cur_pc(id_to_rob_cur_pc),
+    .rob_mis_pc(id_to_rob_mis_pc),
+    .rob_pb_tk_stat(id_to_rob_pb_tk_stat),
 
     // cdb
     .cdb_alu_valid(cdb_alu_valid),
@@ -218,58 +266,52 @@ dispatcher cpu_dispatcher(
     .cdb_ld_val(cdb_ld_val)
 );
 
-wire [`INST_TY_TP] dec_ty;
-wire [`INST_OPT_TP] dec_opt;
-wire [`REG_IDX_TP] dec_rd;
-wire [`REG_IDX_TP] dec_rs1;
-wire [`REG_IDX_TP] dec_rs2;
-wire [`WORD_TP] dec_imm;
-
 decoder cpu_decoder(
-    .inst(bp_pb_inst),
-    .ty(dec_ty),
-    .opt(dec_opt),
-    .rd(dec_rd),
-    .rs1(dec_rs1),
-    .rs2(dec_rs2),
-    .imm(dec_imm),
-    .is_ls()
+    .inst(id_to_dec_inst),
+    .ty(dec_to_id_ty),
+    .opt(dec_to_id_opt),
+    .rd(dec_to_id_rd),
+    .rs1(dec_to_id_rs1),
+    .rs2(dec_to_id_rs2),
+    .imm(dec_to_id_imm),
+    .is_ls(dec_to_id_isls)
 );
 
-wire rs_full;
-wire alu_ena;
-wire [`INST_OPT_TP] alu_opt;
-wire [`WORD_TP] alu_val1;
-wire [`WORD_TP] alu_val2;
-wire [`WORD_TP] alu_imm;
-wire [`ROB_IDX_TP] alu_rob_idx;
+wire rs_to_alu_ena;
+wire [`INST_OPT_TP] rs_to_alu_opt;
+wire [`WORD_TP] rs_to_alu_val1;
+wire [`WORD_TP] rs_to_alu_val2;
+wire [`WORD_TP] rs_to_alu_imm;
+wire [`ROB_IDX_TP] rs_to_alu_rob_idx;
 
 RS cpu_rs(
     .clk(clk_in),
     .rst(rst_in),
     .rdy(rdy_in),
 
-    .rs_en(),
-    .rs_st(),
-    .rs_rb(),
-    .rs_full(rs_full),
+    .rs_en(`TRUE),
+    .rs_st(`FALSE),
+    .rs_rb(cpu_rb_signal),
+    .rs_empty(),
+    .rs_full(rs_to_id_full),
 
-    // idu   
-    .id_opt(rs_opt),
-    .id_src1(rs_src1),
-    .id_src2(rs_src2),
-    .id_val1(rs_val1),
-    .id_val2(rs_val2),
-    .id_imm(rs_imm),  
-    .id_rob_idx(rs_rob_idx),
+    // idu  
+    .id_valid(id_to_rs_ena), 
+    .id_opt(id_to_rs_opt),
+    .id_src1(id_to_rs_src1),
+    .id_src2(id_to_rs_src2),
+    .id_val1(id_to_rs_val1),
+    .id_val2(id_to_rs_val2),
+    .id_imm(id_to_rs_imm),  
+    .id_rob_idx(id_to_rs_rob_idx),
 
     // alu
-    .alu_ena(alu_ena),
-    .alu_opt(alu_opt),
-    .alu_val1(alu_val1),
-    .alu_val2(alu_val2),
-    .alu_imm(alu_imm),
-    .alu_rob_idx(alu_rob_idx),
+    .alu_ena(rs_to_alu_ena),
+    .alu_opt(rs_to_alu_opt),
+    .alu_val1(rs_to_alu_val1),
+    .alu_val2(rs_to_alu_val2),
+    .alu_imm(rs_to_alu_imm),
+    .alu_rob_idx(rs_to_alu_rob_idx),
 
     // cdb
     .cdb_alu_valid(cdb_alu_valid),
@@ -280,46 +322,48 @@ RS cpu_rs(
     .cdb_ld_val(cdb_ld_val)
 );
 
-wire slb_full;
-wire slb_empty;
-wire dcache_rd_ena;
-wire [`ADDR_TP] dcache_rd_addr;
-wire [`INST_OPT_TP] dcache_rd_opt;
-wire cdb_ld_valid;
-wire [`ROB_IDX_TP] cdb_ld_src;
-wire [`WORD_TP] cdb_ld_val;
-wire rob_en;
-wire [`ROB_IDX_TP] rob_sr;
-wire [`WORD_TP] rob_va;
-wire [`ADDR_TP] rob_add;
+wire slb_to_rob_ena;
+wire [`ROB_IDX_TP] slb_to_rob_src;
+wire [`WORD_TP] slb_to_rob_val;
+wire [`ADDR_TP] slb_to_rob_addr;
+wire [`ROB_IDX_TP] slb_to_rob_st_idx;
+wire rob_to_slb_st_rdy;
+
+wire slb_to_mc_ld_ena;
+wire [`ADDR_TP] slb_to_mc_ld_addr;
+wire [3:0] slb_to_mc_ld_len;
+wire [`ROB_IDX_TP] slb_to_mc_ld_src;
+wire mc_to_slb_ld_done;
+wire [`WORD_TP] mc_to_slb_ld_data;
 
 SLB cpu_slb(
     .clk(clk_in),
     .rst(rst_in),
     .rdy(rdy_in),
 
-    .slb_en(),
-    .slb_st(),
-    .slb_rb(),
-    .slb_full(slb_full),
-    .slb_empty(slb_empty),
+    .slb_en(`TRUE),
+    .slb_st(`FALSE),
+    .slb_rb(cpu_rb_signal),
+    .slb_full(slb_to_id_full),
+    .slb_empty(),
 
     // idu
-    .id_ena(slb_valid),
-    .id_opt(slb_opt),
-    .id_src1(slb_src1),
-    .id_src2(slb_src2),
-    .id_val1(slb_val1),
-    .id_val2(slb_val2),
-    .id_imm(slb_imm),
-    .id_rob_idx(slb_rob_idx),
-    
-    // dcache
-    .cache_rd_ena(dcache_rd_ena),
-    .cache_rd_addr(dcache_rd_addr),
-    .cache_rd_opt(dcache_rd_opt),  
-    .cache_rd_hit(cache_),
-    .cache_rd_hit_dat(),
+    .id_valid(id_to_slb_ena),
+    .id_opt(id_to_slb_opt),
+    .id_src1(id_to_slb_src1),
+    .id_src2(id_to_slb_src2),
+    .id_val1(id_to_slb_val1),
+    .id_val2(id_to_slb_val2),
+    .id_imm(id_to_slb_imm),
+    .id_rob_idx(id_to_slb_rob_idx),
+
+    // memctrl
+    .mc_ld_ena(slb_to_mc_ld_ena),
+    .mc_ld_addr(slb_to_mc_ld_addr),
+    .mc_ld_len(slb_to_mc_ld_len),
+    .mc_ld_src(slb_to_mc_ld_src),
+    .mc_ld_done(mc_to_slb_ld_done),
+    .mc_ld_data(mc_to_slb_ld_data),
 
     // cdb
     .cdb_alu_valid(cdb_alu_valid),
@@ -330,10 +374,12 @@ SLB cpu_slb(
     .cdb_ld_val(cdb_ld_val),
 
     // rob
-    .rob_ena(rob_ena),
-    .rob_src(rob_src),
-    .rob_val(rob_val),
-    .rob_addr(rob_addr)
+    .rob_ena(slb_to_rob_ena),
+    .rob_src(slb_to_rob_src),
+    .rob_val(slb_to_rob_val),
+    .rob_addr(slb_to_rob_addr),
+    .rob_st_idx(slb_to_rob_st_idx),
+    .rob_st_rdy(rob_to_slb_st_rdy)
 );
 
 wire [`ROB_IDX_TP] id_src1;
@@ -341,51 +387,50 @@ wire [`ROB_IDX_TP] id_src2;
 wire [`WORD_TP] id_val1;
 wire [`WORD_TP] id_val2;
 
+wire rob_to_reg_wr_ena;
+wire [`REG_IDX_TP] rob_to_reg_wr_rd;
+wire [`WORD_TP] rob_to_reg_wr_val;
+
 regfile cpu_regfile(
     .clk(clk_in),
     .rst(rst_in),
-    .rsy(rsy_in),
+    .rdy(rdy_in),
 
-    .reg_en(),
-    .reg_st(),
-    .reg_rb(),
+    .reg_en(`TRUE),
+    .reg_st(`FALSE),
+    .reg_rb(cpu_rb_signal),
 
     // idu
-    .id_rs1(reg_rs1),
-    .id_rs2(reg_rs2),
-    .id_src1(id_src1),
-    .id_src2(id_src2),
-    .id_val1(id_val1),
-    .id_val2(id_val2),
+    .id_rs1(id_to_reg_rs1),
+    .id_rs2(id_to_reg_rs2),
+    .id_src1(reg_to_id_src1),
+    .id_src2(reg_to_id_src2),
+    .id_val1(reg_to_id_val1),
+    .id_val2(reg_to_id_val2),
     
-    .id_rn_ena(reg_rn_ena),
-    .id_rn_rd(reg_rn_rd),
-    .id_rn_idx(reg_rn_idx),
+    .id_rn_ena(id_to_reg_rn_ena),
+    .id_rn_rd(id_to_reg_rn_rd),
+    .id_rn_idx(id_to_reg_rn_idx),
 
     // rob
-    .rob_wr_ena(reg_wr_ena),
-    .rob_wr_rd(reg_wr_rd),
-    .rob_wr_val(reg_wr_val)
+    .rob_wr_ena(rob_to_reg_wr_ena),
+    .rob_wr_rd(rob_to_reg_wr_rd),
+    .rob_wr_val(rob_to_reg_wr_val)
 );
-
-wire cdb_alu_valid;
-wire [`ROB_IDX_TP] cdb_alu_src;
-wire [`WORD_TP] cdb_alu_val;
-wire cdb_alu_tk;
 
 ALU cpu_alu(
     .clk(clk_in),
     .rst(rst_in),
     .rdy(rdy_in),
 
-    .alu_en(),
-    .alu_st(),
+    .alu_en(`TRUE),
+    .alu_st(`FALSE),
     // rs
-    .rs_opt(alu_opt),
-    .rs_val1(alu_val1),
-    .rs_val2(alu_val2),
-    .rs_imm(alu_imm),
-    .rs_rob_idx(alu_rob_idx),
+    .rs_opt(rs_to_alu_opt),
+    .rs_val1(rs_to_alu_val1),
+    .rs_val2(rs_to_alu_val2),
+    .rs_imm(rs_to_alu_imm),
+    .rs_rob_idx(rs_to_alu_rob_idx),
 
     // cdb 
     .cdb_alu_valid(cdb_alu_valid),
@@ -394,67 +439,56 @@ ALU cpu_alu(
     .cdb_alu_tk(cdb_alu_tk)
 );
 
-wire rob_empty;
-wire rob_full;
-wire [`ROB_IDX_TP] rob_idx;
-wire rob_rb_ena;
-wire [`ADDR_TP] if_rb_pc;
-wire id_src1_rdy;
-wire id_src2_rdy;
-wire [`WORD_TP] id_val1;
-wire [`WORD_TP] id_val2;
-wire reg_wr_ena;
-wire [`REG_IDX_TP] reg_wr_rd;
-wire [`WORD_TP] reg_wr_val;
-wire reg_wr_ena;
-wire [`REG_IDX_TP] reg_wr_rd;
-wire [`WORD_TP] reg_wr_val;
-wire bp_fb_ena;
-wire bp_fb_tk;
-wire [`ADDR_TP] bp_fb_pc;
+wire rob_to_mc_st_ena;
+wire [`ADDR_TP] rob_to_mc_st_addr;
+wire [`WORD_TP] rob_to_mc_st_data;
+wire [3:0] rob_to_mc_st_len;
+wire mc_to_rob_st_done;
 
 ROB cpu_rob(
     .clk(clk_in),
     .rst(rst_in),
     .rdy(rdy_in),
 
-    .rob_en(),
-    .rob_st(),
+    .rob_en(`TRUE),
+    .rob_st(`FALSE),
     .rob_empty(),
-    .rob_full(rob_full),
-    .rob_idx(rob_idx),
-    .rob_rb_ena(rob_rb_ena),
+    .rob_full(rob_to_id_full),
+    .rob_idx(rob_to_id_idx),
+    .rob_rb_ena(cpu_rb_signal),
 
     // if
-    .if_rb_pc(if_rb_pc),
+    .if_rb_pc(rob_to_if_rb_pc),
 
     // id
-    .id_src1(rob_src1),
-    .id_src2(rob_src2),
-    .id_src1_rdy(id_src1_rdy),
-    .id_src2_rdy(id_src2_rdy),
-    .id_val1(id_val1),
-    .id_val2(id_val2),
+    .id_src1(id_to_rob_src1),
+    .id_src2(id_to_rob_src2),
+    .id_src1_rdy(rob_to_id_src1_rdy),
+    .id_src2_rdy(rob_to_id_src2_rdy),
+    .id_val1(rob_to_id_val1),
+    .id_val2(rob_to_id_val2),
     
-    .id_valid(rob_ena),
-    .id_opt(rob_opt),
-    .id_dest(rob_dest),
-    .id_data(rob_data),
-    .id_addr(rob_addr),
-    .id_cur_pc(rob_cur_pc),
-    .id_mis_pc(rob_mis_pc),
-    .id_pb_tk(rob_pb_tk_stat),
+    .id_valid(id_to_rob_ena),
+    .id_opt(id_to_rob_opt),
+    .id_dest(id_to_rob_dest),
+    .id_data(id_to_rob_data),
+    .id_addr(id_to_rob_addr),
+    .id_cur_pc(id_to_rob_cur_pc),
+    .id_mis_pc(id_to_rob_mis_pc),
+    .id_pb_tk(id_to_rob_pb_tk_stat),
 
     // reg
-    .reg_wr_ena(rob_wr_ena),
-    .reg_wr_rd(reg_wr_rd),
-    .reg_wr_val(reg_wr_val),
+    .reg_wr_ena(rob_to_reg_wr_ena),
+    .reg_wr_rd(rob_to_reg_wr_rd),
+    .reg_wr_val(rob_to_reg_wr_val),
     
     // slb
-    .slb_valid(rob_ena),
-    .slb_src(rob_src),
-    .slb_val(rob_val),
-    .slb_addr(rob_addr),
+    .slb_valid(slb_to_rob_ena),
+    .slb_src(slb_to_rob_src),
+    .slb_val(slb_to_rob_val),
+    .slb_addr(slb_to_rob_addr),
+    .slb_st_idx(slb_to_rob_st_idx),
+    .slb_st_rdy(rob_to_slb_st_rdy),
 
     // cdb
     .cdb_alu_valid(cdb_alu_valid),
@@ -465,124 +499,83 @@ ROB cpu_rob(
     .cdb_ld_src(cdb_ld_src),
     .cdb_ld_val(cdb_ld_val),
 
-    // dcache
-    .cache_wr_ena(cache_wr_ena),
-    .cache_wr_addr(cache_wr_addr),
-    .cache_wr_opt(cache_wr_opt),
-    .cache_wr_data(cache_wr_data),
-    .cache_wr_hit(cache_wr_hit),
+    // memctrl
+    .mc_st_ena(rob_to_mc_st_ena),
+    .mc_st_addr(rob_to_mc_st_addr),
+    .mc_st_data(rob_to_mc_st_data),
+    .mc_st_len(rob_to_mc_st_len),
+    .mc_st_done(mc_to_rob_st_done),
 
     // bp
-    .bp_fb_ena(bp_fb_ena),
-    .bp_fb_tk(bp_fb_tk),
-    .bp_fb_pc(bp_fb_pc)
+    .bp_fb_ena(rob_to_bp_fb_ena),
+    .bp_fb_tk(rob_to_bp_fb_tk),
+    .bp_fb_pc(rob_to_bp_fb_pc)
 );
 
-wire if_cache_hit;
-wire [`WORD_TP] if_hit_word;
-wire mem_ena;
-wire [`ADDR_TP] mem_addr;
+wire icache_to_mc_ena;
+wire [`ADDR_TP] icache_to_mc_fc_addr;
+wire mc_to_icache_fc_done;
+wire [`LINE_TP] mc_to_icache_fc_line;
 
 icache cpu_icache(
     .clk(clk_in),
     .rst(rst_in),
-    .rsy(rsy_in),
-
-    .cache_en(),
-    .cache_st(),
-    .cache_rb(rob_rb_ena),
-
-    .if_addr(),
-    .if_cache_hit(if_cache_hit),
-    .if_hit_word(if_hit_word),
-
-    .mem_ena(mem_ena),
-    .mem_addr(mem_addr),
-    .mem_valid(),
-    .mem_line()
-);
-
-wire slb_cache_hit;
-wire [`WORD_TP] slb_hit_word;
-wire rob_cache_hit;
-wire mem_wr_ena;
-wire [`ADDR_TP] mem_wr_addr;
-wire [`LINE_TP] mem_wr_line;
-wire mem_rd_ena;
-wire [`ADDR_TP] mem_rd_addr;
-
-dcache cpu_dcache(
-    .clk(clk_in),
-    .rst(rst_in),
     .rdy(rdy_in),
 
-    .cache_en(),
-    .cache_st(),
-    .cache_rb(rob_rb_ena),
+    .cache_en(`TRUE),
+    .cache_st(`FALSE),
+    .cache_rb(cpu_rb_signal),
 
-    // slb
-    .slb_rd_valid(),
-    .slb_rd_addr(),
-    .slb_rd_opt(),
-    .slb_cache_hit(slb_cache_hit),
-    .slb_hit_word(slb_hit_word),
+    .if_addr(if_to_icache_rd_addr),
+    .if_cache_hit(icache_to_if_hit),
+    .if_hit_word(icache_to_if_inst),
 
-    // rob
-    .rob_wr_valid(),
-    .rob_wr_addr(),
-    .rob_wr_opt(),
-    .rob_wr_data(),
-    .rob_cache_hit(rob_cache_hit), 
-    
-    // memctrl
-    .mem_valid(),
-    .mem_wr_ena(mem_wr_ena),
-    .mem_wr_addr(mem_wr_addr),
-    .mem_wr_line(mem_wr_line),
-    .mem_rd_ena(mem_rd_ena),
-    .mem_rd_addr(mem_rd_addr),
-    .mem_rd_line()
+    .mc_fc_ena(icache_to_mc_ena),
+    .mc_fc_addr(icache_to_mc_fc_addr),
+    .mc_fc_done(mc_to_icache_fc_done),
+    .mc_fc_line(mc_to_icache_fc_line)
 );
-
-wire icache_ena;
-wire [`LINE_TP] icache_rd_line;
-wire dcache_ena;
-wire [`LINE_TP] dcache_rd_line;
-wire ram_ena;
-wire ram_rw_sel;
-wire [`ADDR_TP] ram_addr;
-wire [`BYTE_TP] ram_wr_byte;
 
 memctrl cpu_memctrl(
     .clk(clk_in),
     .rst(rst_in),
     .rdy(rdy_in),
 
-    .mc_en(),
-    .mc_st(),
-    .mc_rb(rob_rb_ena),
+    .mc_en(`TRUE),
+    .mc_st(`FALSE),
+    .mc_rb(cpu_rb_signal),
 
     // icache
-    .icache_rd_valid(),
-    .icache_rd_addr(),
-    .icache_ena(icache_ena),
-    .icache_rd_line(icache_rd_line),
+    .icache_fc_valid(icache_to_mc_ena),
+    .icache_fc_addr(icache_to_mc_fc_addr),
+    .icache_fc_done(mc_to_icache_fc_done),
+    .icache_fc_line(mc_to_icache_fc_line),
 
-    // dcache
-    .dcache_ena(dcache_ena),
-    .dcache_rd_valid(mem_rd_ena),
-    .dcache_wr_valid(mem_wr_ena),
-    .dcache_rd_addr(mem_rd_addr),
-    .dcache_wr_addr(mem_wr_addr),
-    .dcache_wr_line(mem_wr_line),
-    .dcache_rd_line(dcache_rd_line),
+    // rob
+    .rob_st_valid(rob_to_mc_st_ena),
+    .rob_st_addr(rob_to_mc_st_addr),
+    .rob_st_data(rob_to_mc_st_data),
+    .rob_st_len(rob_to_mc_st_len),
+    .rob_st_done(mc_to_rob_st_done),
 
+    // slb
+    .slb_ld_valid(slb_to_mc_ld_ena),
+    .slb_ld_addr(slb_to_mc_ld_addr),
+    .slb_ld_len(slb_to_mc_ld_len),
+    .slb_ld_src(slb_to_mc_ld_src),
+    .slb_ld_done(mc_to_slb_ld_done),
+    .slb_ld_data(mc_to_slb_ld_data),
+
+    // cdb
+    .cdb_ld_ena(cdb_ld_valid),
+    .cdb_ld_src(cdb_ld_src),
+    .cdb_ld_val(cdb_ld_val),
+    
     // ram
-    .ram_ena(ram_ena),
-    .ram_rw_sel(ram_rw_sel),
-    .ram_addr(ram_addr),
-    .ram_wr_byte(ram_wr_byte),
-    .ram_rd_byte()
+    .ram_rw_sel(mem_wr),
+    .ram_addr(mem_a),
+    .ram_wr_byte(mem_dout),
+    .ram_rd_byte(mem_din)
 );
 
 always @(posedge clk_in) begin

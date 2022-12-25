@@ -1,12 +1,15 @@
-`include "../utils.v"
+`ifndef RS_V_ 
+`define RS_V_ 
+
+`include "/home/Modem514/projectAris/riscv/src/utils.v"
 
 `define RS_BIT 4
 `define RS_SIZE (1 << `RS_BIT)
 `define RS_IDX_TP (`RS_SIZE-1):0
 
 module RS #(
-    RS_BIT = `RS_BIT,
-    RS_SIZE = `RS_SIZE
+    parameter RS_BIT = `RS_BIT,
+    parameter RS_SIZE = `RS_SIZE
 ) (
     input wire clk,
     input wire rst,
@@ -16,8 +19,10 @@ module RS #(
     input wire rs_st,
     input wire rs_rb,
     output wire rs_full,
+    output wire rs_empty,
 
-    // idu   
+    // idu
+    input wire id_valid, 
     input wire [`INST_OPT_TP] id_opt,
     input wire [`ROB_IDX_TP] id_src1,
     input wire [`ROB_IDX_TP] id_src2,
@@ -52,60 +57,77 @@ reg [`WORD_TP]     val2 [RS_SIZE-1:0];
 reg [`WORD_TP]     imm  [RS_SIZE-1:0];
 reg [`ROB_IDX_TP]  idx  [RS_SIZE-1:0];
 
-assign rs_full = &busy;
-wire rs_empty = !(|busy);
+reg [RS_BIT-1:0] lag_rs_siz;
+reg rs_push_flag, rs_pop_flag;
+wire [RS_BIT-1:0] rs_siz = lag_rs_siz + (rs_push_flag? 1: 0) + (rs_pop_flag? -1: 0);
 
-wire idle_flag3 = busy[ 7] & busy[ 6] & busy[ 5] & busy[4] & busy[3] & busy[2] & busy[1] & busy[0];
-wire idle_flag2 = busy[11] & busy[10] & busy[ 9] & busy[8] & busy[3] & busy[2] & busy[1] & busy[0];
-wire idle_flag1 = busy[13] & busy[12] & busy[ 9] & busy[8] & busy[5] & busy[4] & busy[1] & busy[0];
-wire idle_flag0 = busy[14] & busy[12] & busy[10] & busy[8] & busy[6] & busy[4] & busy[2] & busy[0];
+assign rs_full = rs_siz >= RS_SIZE - 3;
+assign rs_empty = rs_siz == 0;
+
 wire [RS_BIT-1:0] idle_idx = 
-    ({3'b0, idle_flag3} << 3) | 
-    ({3'b0, idle_flag2} << 2) | 
-    ({3'b0, idle_flag1} << 1) | 
-    ({3'b0, idle_flag0});
+    (!busy[ 0]?  0: (!busy[ 1]?  1: (!busy[ 2]?  2: (!busy[ 3]?  3:
+    (!busy[ 4]?  4: (!busy[ 5]?  5: (!busy[ 6]?  6: (!busy[ 7]?  7:
+    (!busy[ 8]?  8: (!busy[ 9]?  9: (!busy[10]? 10: (!busy[11]? 11:
+    (!busy[12]? 12: (!busy[13]? 13: (!busy[14]? 14: (!busy[15]? 15: 4'bxxxx
+    ))))))))))))))));
+wire [RS_BIT-1:0] exec_idx = 
+    (busy[ 0]?  0: (busy[ 1]?  1: (busy[ 2]?  2: (busy[ 3]?  3:
+    (busy[ 4]?  4: (busy[ 5]?  5: (busy[ 6]?  6: (busy[ 7]?  7:
+    (busy[ 8]?  8: (busy[ 9]?  9: (busy[10]? 10: (busy[11]? 11:
+    (busy[12]? 12: (busy[13]? 13: (busy[14]? 14: (busy[15]? 15: 4'bxxxx
+    ))))))))))))))));
 
-wire exe_flag3 = 
-    (busy[15] && src1[15] == `ZERO_ROB_IDX && src2[15] == `ZERO_ROB_IDX) |
-    (busy[14] && src1[14] == `ZERO_ROB_IDX && src2[14] == `ZERO_ROB_IDX) | 
-    (busy[13] && src1[13] == `ZERO_ROB_IDX && src2[13] == `ZERO_ROB_IDX) | 
-    (busy[12] && src1[12] == `ZERO_ROB_IDX && src2[12] == `ZERO_ROB_IDX) | 
-    (busy[11] && src1[11] == `ZERO_ROB_IDX && src2[11] == `ZERO_ROB_IDX) | 
-    (busy[10] && src1[10] == `ZERO_ROB_IDX && src2[10] == `ZERO_ROB_IDX) | 
-    (busy[ 9] && src1[ 9] == `ZERO_ROB_IDX && src2[ 9] == `ZERO_ROB_IDX) | 
-    (busy[ 8] && src1[ 8] == `ZERO_ROB_IDX && src2[ 8] == `ZERO_ROB_IDX);
-wire exe_flag2 = 
-    (busy[15] && src1[15] == `ZERO_ROB_IDX && src2[15] == `ZERO_ROB_IDX) |
-    (busy[14] && src1[14] == `ZERO_ROB_IDX && src2[14] == `ZERO_ROB_IDX) | 
-    (busy[13] && src1[13] == `ZERO_ROB_IDX && src2[13] == `ZERO_ROB_IDX) | 
-    (busy[12] && src1[12] == `ZERO_ROB_IDX && src2[12] == `ZERO_ROB_IDX) | 
-    (busy[ 7] && src1[ 7] == `ZERO_ROB_IDX && src2[ 7] == `ZERO_ROB_IDX) | 
-    (busy[ 6] && src1[ 6] == `ZERO_ROB_IDX && src2[ 6] == `ZERO_ROB_IDX) | 
-    (busy[ 5] && src1[ 5] == `ZERO_ROB_IDX && src2[ 5] == `ZERO_ROB_IDX) | 
-    (busy[ 4] && src1[ 4] == `ZERO_ROB_IDX && src2[ 4] == `ZERO_ROB_IDX);
-wire exe_flag1 = 
-    (busy[15] && src1[15] == `ZERO_ROB_IDX && src2[15] == `ZERO_ROB_IDX) | 
-    (busy[14] && src1[14] == `ZERO_ROB_IDX && src2[14] == `ZERO_ROB_IDX) | 
-    (busy[11] && src1[11] == `ZERO_ROB_IDX && src2[11] == `ZERO_ROB_IDX) | 
-    (busy[10] && src1[10] == `ZERO_ROB_IDX && src2[10] == `ZERO_ROB_IDX) | 
-    (busy[ 7] && src1[ 7] == `ZERO_ROB_IDX && src2[ 7] == `ZERO_ROB_IDX) | 
-    (busy[ 6] && src1[ 6] == `ZERO_ROB_IDX && src2[ 6] == `ZERO_ROB_IDX) | 
-    (busy[ 3] && src1[ 3] == `ZERO_ROB_IDX && src2[ 3] == `ZERO_ROB_IDX) | 
-    (busy[ 2] && src1[ 2] == `ZERO_ROB_IDX && src2[ 2] == `ZERO_ROB_IDX);
-wire exe_flag0 = 
-    (busy[15] && src1[15] == `ZERO_ROB_IDX && src2[15] == `ZERO_ROB_IDX) |
-    (busy[13] && src1[13] == `ZERO_ROB_IDX && src2[13] == `ZERO_ROB_IDX) | 
-    (busy[11] && src1[11] == `ZERO_ROB_IDX && src2[11] == `ZERO_ROB_IDX) | 
-    (busy[ 9] && src1[ 9] == `ZERO_ROB_IDX && src2[ 9] == `ZERO_ROB_IDX) | 
-    (busy[ 7] && src1[ 7] == `ZERO_ROB_IDX && src2[ 7] == `ZERO_ROB_IDX) | 
-    (busy[ 5] && src1[ 5] == `ZERO_ROB_IDX && src2[ 5] == `ZERO_ROB_IDX) | 
-    (busy[ 3] && src1[ 3] == `ZERO_ROB_IDX && src2[ 3] == `ZERO_ROB_IDX) | 
-    (busy[ 1] && src1[ 1] == `ZERO_ROB_IDX && src2[ 1] == `ZERO_ROB_IDX);
-wire [RS_BIT-1:0] exe_idx =
-    ({3'b0, exe_flag3} << 3) | 
-    ({3'b0, exe_flag2} << 2) | 
-    ({3'b0, exe_flag1} << 1) | 
-    ({3'b0, exe_flag0});
+// wire idle_flag3 = busy[ 7] & busy[ 6] & busy[ 5] & busy[4] & busy[3] & busy[2] & busy[1] & busy[0];
+// wire idle_flag2 = busy[11] & busy[10] & busy[ 9] & busy[8] & busy[3] & busy[2] & busy[1] & busy[0];
+// wire idle_flag1 = busy[13] & busy[12] & busy[ 9] & busy[8] & busy[5] & busy[4] & busy[1] & busy[0];
+// wire idle_flag0 = busy[14] & busy[12] & busy[10] & busy[8] & busy[6] & busy[4] & busy[2] & busy[0];
+// wire [RS_BIT-1:0] idle_idx = 
+//     ({3'b0, idle_flag3} << 3) | 
+//     ({3'b0, idle_flag2} << 2) | 
+//     ({3'b0, idle_flag1} << 1) | 
+//     ({3'b0, idle_flag0});
+
+// wire exe_flag3 = 
+//     (busy[15] && src1[15] == `ZERO_ROB_IDX && src2[15] == `ZERO_ROB_IDX) |
+//     (busy[14] && src1[14] == `ZERO_ROB_IDX && src2[14] == `ZERO_ROB_IDX) | 
+//     (busy[13] && src1[13] == `ZERO_ROB_IDX && src2[13] == `ZERO_ROB_IDX) | 
+//     (busy[12] && src1[12] == `ZERO_ROB_IDX && src2[12] == `ZERO_ROB_IDX) | 
+//     (busy[11] && src1[11] == `ZERO_ROB_IDX && src2[11] == `ZERO_ROB_IDX) | 
+//     (busy[10] && src1[10] == `ZERO_ROB_IDX && src2[10] == `ZERO_ROB_IDX) | 
+//     (busy[ 9] && src1[ 9] == `ZERO_ROB_IDX && src2[ 9] == `ZERO_ROB_IDX) | 
+//     (busy[ 8] && src1[ 8] == `ZERO_ROB_IDX && src2[ 8] == `ZERO_ROB_IDX);
+// wire exe_flag2 = 
+//     (busy[15] && src1[15] == `ZERO_ROB_IDX && src2[15] == `ZERO_ROB_IDX) |
+//     (busy[14] && src1[14] == `ZERO_ROB_IDX && src2[14] == `ZERO_ROB_IDX) | 
+//     (busy[13] && src1[13] == `ZERO_ROB_IDX && src2[13] == `ZERO_ROB_IDX) | 
+//     (busy[12] && src1[12] == `ZERO_ROB_IDX && src2[12] == `ZERO_ROB_IDX) | 
+//     (busy[ 7] && src1[ 7] == `ZERO_ROB_IDX && src2[ 7] == `ZERO_ROB_IDX) | 
+//     (busy[ 6] && src1[ 6] == `ZERO_ROB_IDX && src2[ 6] == `ZERO_ROB_IDX) | 
+//     (busy[ 5] && src1[ 5] == `ZERO_ROB_IDX && src2[ 5] == `ZERO_ROB_IDX) | 
+//     (busy[ 4] && src1[ 4] == `ZERO_ROB_IDX && src2[ 4] == `ZERO_ROB_IDX);
+// wire exe_flag1 = 
+//     (busy[15] && src1[15] == `ZERO_ROB_IDX && src2[15] == `ZERO_ROB_IDX) | 
+//     (busy[14] && src1[14] == `ZERO_ROB_IDX && src2[14] == `ZERO_ROB_IDX) | 
+//     (busy[11] && src1[11] == `ZERO_ROB_IDX && src2[11] == `ZERO_ROB_IDX) | 
+//     (busy[10] && src1[10] == `ZERO_ROB_IDX && src2[10] == `ZERO_ROB_IDX) | 
+//     (busy[ 7] && src1[ 7] == `ZERO_ROB_IDX && src2[ 7] == `ZERO_ROB_IDX) | 
+//     (busy[ 6] && src1[ 6] == `ZERO_ROB_IDX && src2[ 6] == `ZERO_ROB_IDX) | 
+//     (busy[ 3] && src1[ 3] == `ZERO_ROB_IDX && src2[ 3] == `ZERO_ROB_IDX) | 
+//     (busy[ 2] && src1[ 2] == `ZERO_ROB_IDX && src2[ 2] == `ZERO_ROB_IDX);
+// wire exe_flag0 = 
+//     (busy[15] && src1[15] == `ZERO_ROB_IDX && src2[15] == `ZERO_ROB_IDX) |
+//     (busy[13] && src1[13] == `ZERO_ROB_IDX && src2[13] == `ZERO_ROB_IDX) | 
+//     (busy[11] && src1[11] == `ZERO_ROB_IDX && src2[11] == `ZERO_ROB_IDX) | 
+//     (busy[ 9] && src1[ 9] == `ZERO_ROB_IDX && src2[ 9] == `ZERO_ROB_IDX) | 
+//     (busy[ 7] && src1[ 7] == `ZERO_ROB_IDX && src2[ 7] == `ZERO_ROB_IDX) | 
+//     (busy[ 5] && src1[ 5] == `ZERO_ROB_IDX && src2[ 5] == `ZERO_ROB_IDX) | 
+//     (busy[ 3] && src1[ 3] == `ZERO_ROB_IDX && src2[ 3] == `ZERO_ROB_IDX) | 
+//     (busy[ 1] && src1[ 1] == `ZERO_ROB_IDX && src2[ 1] == `ZERO_ROB_IDX);
+// wire [RS_BIT-1:0] exec_idx =
+//     ({3'b0, exe_flag3} << 3) | 
+//     ({3'b0, exe_flag2} << 2) | 
+//     ({3'b0, exe_flag1} << 1) | 
+//     ({3'b0, exe_flag0});
 
 wire [`ROB_IDX_TP] upd_src1 = (cdb_alu_valid && cdb_alu_src == id_src1)? `ZERO_ROB_IDX
     : ((cdb_ld_valid && cdb_ld_src == id_src1)? `ZERO_ROB_IDX: id_src1);
@@ -120,6 +142,9 @@ integer i;
 
 always @(posedge clk) begin
     alu_ena <= `FALSE;
+    rs_push_flag <= `FALSE;
+    rs_pop_flag <= `FALSE;
+    lag_rs_siz <= rs_siz;
 
     if (rst || rs_rb) begin
         for (i = 0; i < RS_SIZE; i++) begin
@@ -138,7 +163,7 @@ always @(posedge clk) begin
     end
     else begin
         // issue
-        if (!rs_full) begin 
+        if (id_valid) begin 
             busy[idle_idx] <= `TRUE;
             opt [idle_idx] <= id_opt;
             src1[idle_idx] <= upd_src1;
@@ -147,16 +172,18 @@ always @(posedge clk) begin
             val2[idle_idx] <= upd_val2;
             imm [idle_idx] <= id_imm;
             idx [idle_idx] <= id_rob_idx;
+            rs_push_flag <= `TRUE;
         end
         // execute
         if (!rs_empty) begin
-            busy[exe_idx] <= `FALSE;
+            busy[exec_idx] <= `FALSE;
             alu_ena  <= `TRUE;
-            alu_opt  <= opt [exe_idx];
-            alu_val1 <= val1[exe_idx];
-            alu_val2 <= val2[exe_idx];
-            alu_imm  <= imm [exe_idx];
-            alu_rob_idx <= idx[exe_idx];
+            alu_opt  <= opt [exec_idx];
+            alu_val1 <= val1[exec_idx];
+            alu_val2 <= val2[exec_idx];
+            alu_imm  <= imm [exec_idx];
+            alu_rob_idx <= idx[exec_idx];
+            rs_pop_flag <= `TRUE;
         end
         // update
         if (cdb_alu_valid) begin
@@ -187,3 +214,5 @@ always @(posedge clk) begin
 end
     
 endmodule
+
+`endif 

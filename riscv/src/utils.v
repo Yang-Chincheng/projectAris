@@ -1,3 +1,6 @@
+`ifndef UTILS_V_
+`define UTILS_V_
+
 `define TRUE  (1'b1)
 `define FALSE (1'b0)
 
@@ -11,7 +14,7 @@
 `define ZERO_ADDR (`ADDR_LN'b0)
 
 `define WORD_LN 32
-`define WORD_TP (`ADDR_LN-1):0
+`define WORD_TP (`WORD_LN-1):0
 `define ZERO_WORD (`WORD_LN'b0)
 
 `define HWORD_LN 16
@@ -139,3 +142,5 @@
 `define REG_IDX_LN 5
 `define REG_IDX_TP (`REG_IDX_LN-1):0
 `define ZERO_REG_IDX (`REG_IDX_LN'b0)
+
+`endif

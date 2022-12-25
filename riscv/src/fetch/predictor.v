@@ -1,4 +1,7 @@
-`include "../utils.v"
+`ifndef PREDICTOR_V_ 
+`define PREDICTOR_V_
+
+`include "/home/Modem514/projectAris/riscv/src/utils.v"
 
 `define ADDR_HASH 9:2
 `define OPC_RG 6:0
@@ -6,13 +9,12 @@
 `define OPC_JAL 'h6f
 
 module predictor #(
-           BHT_BIT = 2,
-           BHT_SIZE = 256
+           parameter BHT_BIT = 2,
+           parameter BHT_SIZE = 256
        ) (
            input wire clk,
            input wire rst,
-
-           input wire pd_valid,
+           input wire rdy,
 
            input wire [`ADDR_TP] pd_pc,
            input wire [`WORD_TP] pd_inst,
@@ -51,7 +53,7 @@ always @(posedge clk) begin
             bht[i] = 2'b0;
         end
     end
-    else if (!pd_valid) begin
+    else if (!rdy) begin
         // do nothing
     end
     else if (fb_ena) begin
@@ -65,3 +67,5 @@ always @(posedge clk) begin
 end
 
 endmodule
+
+`endif 

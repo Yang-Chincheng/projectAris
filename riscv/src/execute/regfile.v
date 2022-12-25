@@ -1,4 +1,7 @@
-`include "../utils.v"
+`ifndef REGFILE_V_ 
+`define REGFILE_V_ 
+
+`include "/home/Modem514/projectAris/riscv/src/utils.v"
 
 `define REG_BIT `REG_IDX_LN
 `define REG_SIZE (1 << `REG_BIT)
@@ -10,12 +13,12 @@
  */
 
 module regfile #(
-    REG_SIZE = `REG_SIZE,
-    REG_BIT = `REG_BIT
+    parameter REG_SIZE = `REG_SIZE,
+    parameter REG_BIT = `REG_BIT
 ) (
     input wire clk,
     input wire rst,
-    input wire rsy,
+    input wire rdy,
 
     input wire reg_en,
     input wire reg_st,
@@ -52,21 +55,32 @@ assign id_val2 = ((rob_wr_ena && rob_wr_rd == id_rs2)? rob_wr_val: val[id_rs2]);
 integer i;
 
 always @(posedge clk) begin
-    if (rst || reg_rb) begin
+    if (rst) begin
         for (i = 0; i < REG_SIZE; i++) begin
             src[i] <= `ZERO_ROB_IDX;
             val[i] <= `ZERO_WORD;
         end
     end
-    else if (!reg_en || reg_st) begin
+    else if (reg_rb) begin
+        if (rob_wr_ena) begin
+            val[rob_wr_rd] <= rob_wr_val;
+        end
+        for (i = 0; i < REG_SIZE; i++) begin
+            src[i] <= `ZERO_ROB_IDX;
+        end
+    end
+    else if (!rdy || !reg_en || reg_st) begin
         // STALL
     end
     else if (id_rn_ena) begin
         src[id_rn_rd] <= id_rn_idx;
     end
     else if (rob_wr_ena) begin
+        src[rob_wr_rd] <= `ZERO_ROB_IDX;
         val[rob_wr_rd] <= rob_wr_val;
     end
 end
 
 endmodule
+
+`endif 

@@ -1,4 +1,7 @@
-`include "../utils.v"
+`ifndef DECODER_V_ 
+`define DECODER_V_
+
+`include "/home/Modem514/projectAris/riscv/src/utils.v"
 
 `define OPC_RG  6: 0
 `define FN3_RG 14:12
@@ -144,3 +147,5 @@ always @(*) begin
 end
 
 endmodule
+
+`endif 

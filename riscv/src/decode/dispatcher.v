@@ -1,18 +1,23 @@
-`include "../utils.v"
+`ifndef DISPATCHER_V_
+`define DISPATCHER_V_
+
+`include "/home/Modem514/projectAris/riscv/src/utils.v"
 
 module dispatcher(
     input wire clk, // system clock
     input wire rst, // reset signal
     input wire rdy,
 
-    input id_en, // inst decode unit enabling signal
-    input id_st, // inst decode unit stall signal
-    input id_rb, // inst decode unit rollback signal
+    input wire id_en, // inst decode unit enabling signal
+    input wire id_st, // inst decode unit stall signal
+    input wire id_rb, // inst decode unit rollback signal
+    output wire id_full,
 
     // ifu
+    input wire if_valid,
     input wire [`WORD_TP] if_inst, // inst from ifu
     input wire [`ADDR_TP] if_cur_pc, // pc from ifu
-    input wire [`ADDR_TP] if_nex_pc, // rollback target from ifu
+    // input wire [`ADDR_TP] if_nex_pc, // rollback target from ifu
     input wire [`ADDR_TP] if_mis_pc, // rollback target from ifu
     input wire if_pb_tk_stat, // predict taken status from ifu
 
@@ -49,16 +54,17 @@ module dispatcher(
     output reg [`WORD_TP] rs_imm,  
     output reg [`ROB_IDX_TP] rs_rob_idx,
 
-    // lsb
-    input wire lsb_full,
-    output reg lsb_ena,
-    output reg [`INST_OPT_TP] lsb_opt,
-    output reg [`ROB_IDX_TP] lsb_src1,
-    output reg [`ROB_IDX_TP] lsb_src2,
-    output reg [`WORD_TP] lsb_val1,
-    output reg [`WORD_TP] lsb_val2,
-    output reg [`WORD_TP] lsb_imm, 
-    output reg [`ROB_IDX_TP] lsb_rob_idx,
+    // slb
+    input wire slb_full,
+    output reg slb_ena,
+    output reg [`INST_OPT_TP] slb_opt,
+    output reg [`ROB_IDX_TP] slb_src1,
+    output reg [`ROB_IDX_TP] slb_src2,
+    output reg [`WORD_TP] slb_val1,
+    output reg [`WORD_TP] slb_val2,
+    output reg [`WORD_TP] slb_imm, 
+    output reg [`ROB_IDX_TP] slb_rob_idx,
+    output reg slb_isld,
 
     // rob
     input wire rob_full,
@@ -77,7 +83,6 @@ module dispatcher(
     output reg [`WORD_TP] rob_data,
     output reg [`ADDR_TP] rob_addr,
     output reg [`ADDR_TP] rob_cur_pc,
-    // output reg [`ADDR_TP] rob_nex_pc,
     output reg [`ADDR_TP] rob_mis_pc,
     output reg rob_pb_tk_stat,
 
@@ -96,12 +101,12 @@ assign reg_rs2 = dec_rs2;
 assign rob_src1 = reg_src1;
 assign rob_src2 = reg_src2;
 
-wire idu_st = id_st | rob_full | (dec_is_ls & lsb_full) | (!dec_is_ls & rs_full);
+assign id_full = rob_full | (dec_is_ls & slb_full) | (!dec_is_ls & rs_full);
 
-wire [`ROB_IDX_TP] org_src1 = (|reg_src1)? `ZERO_ROB_IDX: (rob_src1_rdy? `ZERO_ROB_IDX: reg_src1);
-wire [`ROB_IDX_TP] org_src2 = (|reg_src2)? `ZERO_ROB_IDX: (rob_src2_rdy? `ZERO_ROB_IDX: reg_src2);
-wire [`WORD_TP] org_val1 = (|reg_src1)? reg_val1: (rob_src1_rdy? rob_val1: `ZERO_WORD);
-wire [`WORD_TP] org_val2 = (|reg_src2)? reg_val2: (rob_src2_rdy? rob_val2: `ZERO_WORD);
+wire [`ROB_IDX_TP] org_src1 = (reg_src1 == 0 || rob_src1_rdy)? `ZERO_ROB_IDX: reg_src1;
+wire [`ROB_IDX_TP] org_src2 = (reg_src2 == 0 || rob_src2_rdy)? `ZERO_ROB_IDX: reg_src2;
+wire [`WORD_TP] org_val1 = (reg_src1 == 0)? reg_val1: (rob_src1_rdy? rob_val1: `ZERO_WORD);
+wire [`WORD_TP] org_val2 = (reg_src2 == 0)? reg_val2: (rob_src2_rdy? rob_val2: `ZERO_WORD);
 
 wire [`ROB_IDX_TP] upd_src1 = (cdb_alu_valid && cdb_alu_src == org_src1)? `ZERO_ROB_IDX
     : ((cdb_ld_valid && cdb_ld_src == org_src1)? `ZERO_ROB_IDX: org_src1);
@@ -114,38 +119,40 @@ wire [`WORD_TP] upd_val2 = (cdb_alu_valid && cdb_alu_src == org_src2)? cdb_alu_v
 
 always @(posedge clk) begin
     rs_ena <= `FALSE;
-    lsb_ena <= `FALSE;
+    slb_ena <= `FALSE;
     rob_ena <= `FALSE;
     reg_rn_ena <= `FALSE;
     
     if (rst) begin 
         // RESET
     end
-    else if (!id_en || idu_st || !rdy) begin
+    else if (!id_en || id_st || !rdy) begin
         // STALL
     end
     else if (id_rb) begin
         // ROLLBACK
     end
-    else begin
-        // issue to lsb
+    else if (if_valid) begin
+        // issue to slb
         if (dec_is_ls) begin
-            lsb_ena <= `TRUE;
-            lsb_opt <= dec_opt;
-            lsb_imm <= dec_imm;
-            lsb_rob_idx <= rob_idx;
+            slb_ena <= `TRUE;
+            slb_opt <= dec_opt;
+            slb_imm <= dec_imm;
+            slb_rob_idx <= rob_idx;
             case (dec_ty)
                 `TYPE_S: begin
-                    lsb_src1 <= upd_src1;
-                    lsb_val1 <= upd_val1;
-                    lsb_src2 <= upd_src2;
-                    lsb_val2 <= upd_val2;
+                    slb_src1 <= upd_src1;
+                    slb_val1 <= upd_val1;
+                    slb_src2 <= upd_src2;
+                    slb_val2 <= upd_val2;
+                    slb_isld <= `FALSE;
                 end
                 `TYPE_I: begin
-                    lsb_src1 <= upd_src1;
-                    lsb_val1 <= upd_val1;
-                    lsb_src2 <= `ZERO_ROB_IDX;
-                    lsb_val2 <= `ZERO_WORD;
+                    slb_src1 <= upd_src1;
+                    slb_val1 <= upd_val1;
+                    slb_src2 <= `ZERO_ROB_IDX;
+                    slb_val2 <= `ZERO_WORD;
+                    slb_isld <= `TRUE;
                 end
                 default: begin end 
             endcase
@@ -189,14 +196,13 @@ always @(posedge clk) begin
         rob_ena <= `TRUE;
         rob_opt <= dec_opt;
         rob_cur_pc <= if_cur_pc;
-        // rob_nex_pc <= if_nex_pc;
         rob_mis_pc <= if_mis_pc;
         rob_pb_tk_stat <= if_pb_tk_stat;
         rob_data <= `ZERO_WORD;
         rob_addr <= `ZERO_ADDR;
         case (dec_ty)
             `TYPE_B, `TYPE_S: begin
-                rob_dest <= `ZERO_ROB_IDX;
+                rob_dest <= `ZERO_REG_IDX;
             end
             `TYPE_R, `TYPE_J, `TYPE_U, `TYPE_I: begin
                 rob_dest <= dec_rd;
@@ -211,3 +217,5 @@ always @(posedge clk) begin
 end
     
 endmodule
+
+`endif

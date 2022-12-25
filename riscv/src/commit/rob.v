@@ -1,4 +1,7 @@
-`include "../utils.v"
+`ifndef ROB_V_ 
+`define ROB_V_
+
+`include "/home/Modem514/projectAris/riscv/src/utils.v"
 
 `define ROB_BIT `ROB_IDX_LN
 `define ROB_SIZE (1 << `ROB_BIT)
@@ -10,8 +13,8 @@
  */
 
 module ROB #(
-    ROB_BIT = `ROB_BIT,
-    ROB_SIZE = `ROB_SIZE
+    parameter ROB_BIT = `ROB_BIT,
+    parameter ROB_SIZE = `ROB_SIZE
 ) (
     input wire clk,
     input wire rst,
@@ -54,6 +57,8 @@ module ROB #(
     input wire [`ROB_IDX_TP] slb_src,
     input wire [`WORD_TP] slb_val,
     input wire [`ADDR_TP] slb_addr,
+    input wire [`ROB_IDX_TP] slb_st_idx,
+    output wire slb_st_rdy,
 
     // cdb
     input wire cdb_alu_valid,
@@ -64,12 +69,12 @@ module ROB #(
     input wire [`ROB_IDX_TP] cdb_ld_src,
     input wire [`WORD_TP] cdb_ld_val,
 
-    // dcache
-    output reg cache_wr_ena,
-    output reg [`ADDR_TP] cache_wr_addr,
-    output reg [`INST_OPT_TP] cache_wr_opt,
-    output reg [`WORD_TP] cache_wr_data,
-    input wire cache_wr_hit,
+    // memctrl
+    output reg mc_st_ena,
+    output reg [`ADDR_TP] mc_st_addr,
+    output reg [`WORD_TP] mc_st_data,
+    output reg [3:0] mc_st_len,
+    input wire mc_st_done,
 
     // bp
     output reg bp_fb_ena,
@@ -83,7 +88,7 @@ reg rob_stat;
 reg [ROB_BIT-1:0] lag_rob_siz;
 reg rob_push_flag, rob_pop_flag;
 wire [ROB_BIT-1:0] rob_siz = lag_rob_siz + (rob_push_flag? 1: 0) + (rob_pop_flag? -1: 0);
-assign rob_full = (rob_siz == ROB_SIZE);
+assign rob_full = (rob_siz >= ROB_SIZE - 5);
 assign rob_empty = (rob_siz == 0);
 reg [ROB_BIT-1:0] rob_head;
 reg [ROB_BIT-1:0] rob_tail;
@@ -94,20 +99,21 @@ reg [`REG_IDX_TP]  dest   [ROB_SIZE-1:0];
 reg [`WORD_TP]     data   [ROB_SIZE-1:0];
 reg [`ADDR_TP]     addr   [ROB_SIZE-1:0];
 reg [`ADDR_TP]     cur_pc [ROB_SIZE-1:0];
-reg [`ADDR_TP]     nex_pc [ROB_SIZE-1:0];
 reg [`ADDR_TP]     mis_pc [ROB_SIZE-1:0];
 reg                pb_tk  [ROB_SIZE-1:0];
 reg                rl_tk  [ROB_SIZE-1:0];
 
 assign rob_idx = rob_tail;
 assign id_src1_rdy = ((cdb_alu_valid && cdb_alu_src == id_src1)? `TRUE
-    : ((cdb_ld_valid && cdb_ld_src == id_src1)? `TRUE: busy[id_src1]));
+    : ((cdb_ld_valid && cdb_ld_src == id_src1)? `TRUE: !busy[id_src1]));
 assign id_src2_rdy = ((cdb_alu_valid && cdb_alu_src == id_src2)? `TRUE
-    : ((cdb_ld_valid && cdb_ld_src == id_src2)? `TRUE: busy[id_src2]));
+    : ((cdb_ld_valid && cdb_ld_src == id_src2)? `TRUE: !busy[id_src2]));
 assign id_val1 = ((cdb_alu_valid && cdb_alu_src == id_src1)? cdb_alu_val
     : ((cdb_ld_valid && cdb_ld_src == id_src1)? cdb_ld_val: data[id_src1]));
 assign id_val2 = ((cdb_alu_valid && cdb_alu_src == id_src2)? cdb_alu_val
     : ((cdb_ld_valid && cdb_ld_src == id_src2)? cdb_ld_val: data[id_src2]));
+
+assign slb_st_rdy = !busy[slb_st_idx] && rob_head == slb_st_idx;
 
 integer i;
 
@@ -115,8 +121,14 @@ always @(posedge clk) begin
     reg_wr_ena <= `FALSE;
     bp_fb_ena <= `FALSE;
     rob_rb_ena <= `FALSE;
+    lag_rob_siz <= rob_siz;
+    rob_push_flag <= `FALSE;
+    rob_pop_flag <= `FALSE;
 
     if (rst) begin
+        lag_rob_siz <= 0;
+        rob_head <= 1;
+        rob_tail <= 1;
         for (i = 0; i < ROB_SIZE; i++) begin
             busy[i] <= `FALSE;
             opt [i] <= `OPT_NONE;
@@ -124,7 +136,6 @@ always @(posedge clk) begin
             data[i] <= `ZERO_WORD;
             addr[i] <= `ZERO_ADDR;
             cur_pc[i] <= `ZERO_ADDR; 
-            nex_pc[i] <= `ZERO_ADDR; 
             mis_pc[i] <= `ZERO_ADDR;
             pb_tk [i] <= `FALSE; 
             rl_tk [i] <= `FALSE;
@@ -135,22 +146,21 @@ always @(posedge clk) begin
     end
     else begin
         // issue
-        if (id_valid && !rob_full) begin
+        if (id_valid) begin
             busy[rob_tail] <= `TRUE;
             opt[rob_tail] <= id_opt;
             dest[rob_tail] <= id_dest;
             data[rob_tail] <= id_data;
             addr[rob_tail] <= id_addr;
             cur_pc[rob_tail] <= id_cur_pc;
-            // nex_pc[rob_tail] <= id_nex_pc;
             mis_pc[rob_tail] <= id_mis_pc;
             pb_tk [rob_tail] <= id_pb_tk;
             rl_tk [rob_tail] <= `FALSE;
-            rob_tail <= rob_tail + 1;
+            rob_tail <= ((rob_tail == ROB_SIZE-1)? 1: rob_tail + 1);
             rob_push_flag <= `TRUE;
         end
         // commit
-        if (!rob_empty) begin
+        if (!rob_empty && !busy[rob_head]) begin
             case (opt[rob_head])
                 // branch
                 `OPT_BEQ, `OPT_BNE, `OPT_BLT, `OPT_BGE, `OPT_BLTU, `OPT_BGEU: begin
@@ -161,32 +171,41 @@ always @(posedge clk) begin
                         rob_rb_ena <= `TRUE;
                         if_rb_pc <= mis_pc[rob_head];
                     end
-                    rob_pop_flag <= `FALSE;
+                    rob_pop_flag <= `TRUE;
+                    rob_head <= ((rob_head == ROB_SIZE-1)? 1: rob_head + 1);
                 end
                 `OPT_SB, `OPT_SH, `OPT_SW: begin
                     if (rob_stat == IDLE) begin
-                        cache_wr_ena <= `TRUE;
-                        cache_wr_opt <= opt[rob_head];
-                        cache_wr_addr <= addr[rob_head];
-                        cache_wr_data <= data[rob_head];
-                        rob_stat <= STORING;
+                        mc_st_ena <= `TRUE;
+                        mc_st_addr <= addr[rob_head];
+                        mc_st_data <= data[rob_head];
+                        mc_st_len <= (opt[rob_head] == `OPT_SB? 0: (opt[rob_head] == `OPT_SH? 1: 3));
                         rob_pop_flag <= `TRUE;
+                        rob_head <= ((rob_head == ROB_SIZE-1)? 1: rob_head + 1);
                     end
                 end
                 `OPT_JALR: begin
-                    // TODO
+                    reg_wr_ena <= `TRUE;
+                    reg_wr_rd <= dest[rob_head];
+                    reg_wr_val <= cur_pc[rob_head] + `NEXT_PC_INC;
+                    rob_rb_ena <= `TRUE;
+                    if_rb_pc <= {data[rob_head][31:1], 1'b0}; 
+                    rob_pop_flag <= `TRUE;
+                    rob_head <= ((rob_head == ROB_SIZE-1)? 1: rob_head + 1);
                 end
                 default: begin
                     reg_wr_ena <= `TRUE;
                     reg_wr_rd <= dest[rob_head];
                     reg_wr_val <= data[rob_head];
+                    rob_pop_flag <= `TRUE;
+                    rob_head <= ((rob_head == ROB_SIZE-1)? 1: rob_head + 1);
                 end
             endcase
         end
         // update
-        if (rob_stat == STORING && cache_wr_hit) begin
+        if (rob_stat == STORING && mc_st_done) begin
             rob_stat <= IDLE;
-            cache_wr_ena <= `FALSE;
+            mc_st_ena <= `FALSE;
         end
         if (cdb_alu_valid) begin
             data[cdb_alu_src] <= cdb_alu_val;
@@ -207,3 +226,5 @@ always @(posedge clk) begin
 end
 
 endmodule
+
+`endif 

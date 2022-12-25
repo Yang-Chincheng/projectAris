@@ -1,4 +1,7 @@
-`include "../utils.v"
+`ifndef ICACHE_V
+`define ICACHE_V
+
+`include "/home/Modem514/projectAris/riscv/src/utils.v"
 
 `define LINE_NUM 256
 `define LINE_SZ 4
@@ -23,11 +26,11 @@
 `define OFF0_RG 31:0
 
 module icache #(
-    LINE_NUM = `LINE_NUM
+    parameter LINE_NUM = `LINE_NUM
 ) (
     input wire clk,
     input wire rst,
-    input wire rsy,
+    input wire rdy,
 
     input wire cache_en,
     input wire cache_st,
@@ -37,13 +40,13 @@ module icache #(
     output wire if_cache_hit,
     output wire [`WORD_TP] if_hit_word,
 
-    output reg mem_ena,
-    output reg [`ADDR_TP] mem_addr,
-    input wire mem_valid,
-    input wire [`LINE_TP] mem_line
+    output reg mc_fc_ena,
+    output reg [`ADDR_TP] mc_fc_addr,
+    input wire mc_fc_done,
+    input wire [`LINE_TP] mc_fc_line
 );
 
-parameter IDLE = 0, BUSY = 1;
+parameter IDLE = 0, FETCHING = 1;
 reg cache_stat;
 
 reg valid [LINE_NUM-1:0];
@@ -54,9 +57,9 @@ integer i;
 
 wire [`IDX_RG] if_idx = if_addr[`IDX_RG];
 assign if_cache_hit = valid[if_idx] && tag[if_idx] == if_addr[`TAG_RG];
-assign if_hit_word = (if_addr[1]? 
-    (if_addr[0]? dat[if_idx][`OFF3_RG]: dat[if_idx][`OFF2_RG]):
-    (if_addr[0]? dat[if_idx][`OFF1_RG]: dat[if_idx][`OFF0_RG])
+assign if_hit_word = (if_addr[3]? 
+    (if_addr[2]? dat[if_idx][`OFF3_RG]: dat[if_idx][`OFF2_RG]):
+    (if_addr[2]? dat[if_idx][`OFF1_RG]: dat[if_idx][`OFF0_RG])
 );
 
 always @(posedge clk) begin
@@ -68,20 +71,21 @@ always @(posedge clk) begin
             dat[i] = `ZERO_LINE;
         end
     end
-    else if (!cache_en || cache_st) begin
+    else if (!rdy || !cache_en || cache_st) begin
         // STALL
     end
     else begin
         if (!if_cache_hit && cache_stat == IDLE) begin
-            mem_ena <= `TRUE;
-            mem_addr <= {if_addr[31:4], 4'b0};
-            cache_stat <= BUSY;
+            cache_stat <= FETCHING;
+            mc_fc_ena <= `TRUE;
+            mc_fc_addr <= {if_addr[31:4], 4'b0};
         end
-        if (cache_stat == BUSY && mem_valid) begin
-            mem_ena <= `FALSE;
+        if (cache_stat == FETCHING && mc_fc_done) begin
+            cache_stat <= IDLE;
+            mc_fc_ena <= `FALSE;
             valid[if_idx] <= `TRUE;
-            tag[if_idx] <= mem_addr[`TAG_RG];
-            dat[if_idx] <= mem_line;
+            tag[if_idx] <= mc_fc_addr[`TAG_RG];
+            dat[if_idx] <= mc_fc_line;
             cache_stat <= IDLE;
         end
     end
@@ -89,3 +93,5 @@ end
 
 
 endmodule
+
+`endif 

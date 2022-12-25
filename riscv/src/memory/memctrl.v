@@ -1,4 +1,7 @@
-`include "../utils.v"
+`ifndef MEMCTRL_V_ 
+`define MEMCTRL_V_ 
+
+`include "/home/Modem514/projectAris/riscv/src/utils.v"
 
 `define LINE_TP 127:0
 `define OFF3_RG 127:96
@@ -16,116 +19,159 @@ module memctrl(
     input wire mc_rb,
 
     // icache
-    input wire icache_rd_valid,
-    input wire [`ADDR_TP] icache_rd_addr,
-    output reg icache_ena,
-    output reg [`LINE_TP] icache_rd_line,
+    input wire icache_fc_valid,
+    input wire [`ADDR_TP] icache_fc_addr,
+    output reg icache_fc_done,
+    output reg [`LINE_TP] icache_fc_line,
 
-    // dcache
-    output reg dcache_ena,
-    input wire dcache_rd_valid,
-    input wire dcache_wr_valid,
-    input wire [`ADDR_TP] dcache_rd_addr,
-    input wire [`ADDR_TP] dcache_wr_addr,
-    input wire [`LINE_TP] dcache_wr_line,
-    output reg [`LINE_TP] dcache_rd_line,
+    // rob
+    input wire rob_st_valid, 
+    input wire [`ADDR_TP] rob_st_addr,
+    input wire [`WORD_TP] rob_st_data,
+    input wire [3:0] rob_st_len,
+    output reg rob_st_done,
+
+    // slb
+    input wire slb_ld_valid,
+    input wire [`ADDR_TP] slb_ld_addr,
+    input wire [3:0] slb_ld_len,
+    input wire [`ROB_IDX_TP] slb_ld_src,
+    output reg slb_ld_done,
+    output reg [`WORD_TP] slb_ld_data,
+    
+    // cdb
+    output reg cdb_ld_ena,
+    output reg [`ROB_IDX_TP] cdb_ld_src,
+    output reg [`WORD_TP] cdb_ld_val,
 
     // ram
-    output reg ram_ena,
     output reg ram_rw_sel,
     output reg [`ADDR_TP] ram_addr,
     output reg [`BYTE_TP] ram_wr_byte,
     input wire [`BYTE_TP] ram_rd_byte
 );
 
+wire [`BYTE_TP] st_bytes[3:0];
+assign {st_bytes[0], st_bytes[1], st_bytes[2], st_bytes[3]} = rob_st_data;
+
 parameter READ = 0, WRITE = 1;
 parameter IDLE = 0, FETCHING = 1, LOADING = 2, STORING = 3;
 reg [1:0] mc_stat;
+reg [3:0] counter;
 
+reg ram_rw_start;
 reg [`BYTE_TP] rd_buff[15:0];
-reg [`BYTE_TP] wr_buff[15:0];
-reg [`ADDR_TP] byte_off;
 
 integer i;
 
 always @(posedge clk) begin
+    rob_st_done <= `FALSE;
+    slb_ld_done <= `FALSE;
+    icache_fc_done <= `FALSE;
 
     if (rst) begin
         mc_stat <= IDLE;
+        ram_rw_sel <= READ;
+        ram_rw_start <= `FALSE;
+        for (i = 0; i < 16; ++i) begin
+            rd_buff[i] <= `ZERO_BYTE;
+        end
     end
     else if (!rdy || !mc_en || mc_st) begin
         // STALL
     end
     else begin
+        // launch a r/w procedure (st > ld > fetch)
         if (mc_stat == IDLE) begin
-            if (icache_rd_valid) begin
-                mc_stat <= FETCHING;
-                ram_ena <= `TRUE;
-                ram_rw_sel <= READ;
-                ram_addr <= icache_rd_addr;
-                byte_off <= 0;
-            end
-            else if (dcache_rd_valid) begin
-                mc_stat <= LOADING;
-                ram_ena <= `TRUE;
-                ram_rw_sel <= READ;
-                ram_addr <= dcache_rd_addr;
-                byte_off <= 0;
-            end
-            else if (dcache_wr_valid) begin
+            if (rob_st_valid && !rob_st_done) begin
                 mc_stat <= STORING;
-                ram_ena <= `TRUE;
+                ram_rw_start <= `TRUE;
+                counter <= 0;
                 ram_rw_sel <= WRITE;
-
-                {
-                    wr_buff[15], wr_buff[14], wr_buff[13], wr_buff[11],
-                    wr_buff[10], wr_buff[ 9], wr_buff[ 8], wr_buff[ 7],
-                    wr_buff[ 6], wr_buff[ 5], wr_buff[ 4], wr_buff[ 3],
-                    wr_buff[ 3], wr_buff[ 2], wr_buff[ 1], wr_buff[ 0]
-                }
-                = dcache_wr_line;
-                
-                ram_addr <= dcache_wr_addr;
-                ram_wr_byte <= dcache_rd_line[7:0];
-                byte_off <= 0;
+                ram_addr <= rob_st_addr;
+                ram_wr_byte <= st_bytes[0];
+            end
+            else if (slb_ld_valid && !slb_ld_done) begin
+                mc_stat <= LOADING;
+                ram_rw_start <= `TRUE;
+                counter <= 15;
+                ram_rw_sel <= READ;
+                ram_addr <= slb_ld_addr;
+                for (i = 0; i < 4; i++) begin
+                    rd_buff[i] <= `ZERO_BYTE;
+                end
+            end
+            else if (icache_fc_valid && !icache_fc_done) begin
+                mc_stat <= FETCHING;
+                ram_rw_start <= `TRUE;
+                counter <= 15;
+                ram_rw_sel <= READ;
+                ram_addr <= icache_fc_addr;
             end
         end
-        else begin
-            if (byte_off == 16) begin
+        // storing data from rob
+        else if (mc_stat == STORING) begin
+            ram_rw_start <= `FALSE;
+            if (counter == rob_st_len) begin
                 mc_stat <= IDLE;
-                ram_ena <= `FALSE;
-                case (mc_stat)
-                    FETCHING: begin
-                        icache_ena <= `TRUE;
-                        icache_rd_line <= {
-                            rd_buff[15], rd_buff[14], rd_buff[13], rd_buff[11],
-                            rd_buff[10], rd_buff[ 9], rd_buff[ 8], rd_buff[ 7],
-                            rd_buff[ 6], rd_buff[ 5], rd_buff[ 4], rd_buff[ 3],
-                            rd_buff[ 3], rd_buff[ 2], rd_buff[ 1], wr_buff[ 0]
-                        };
-                    end 
-                    LOADING: begin
-                        dcache_ena <= `TRUE;
-                        icache_rd_line <= {
-                            rd_buff[15], rd_buff[14], rd_buff[13], rd_buff[11],
-                            rd_buff[10], rd_buff[ 9], rd_buff[ 8], rd_buff[ 7],
-                            rd_buff[ 6], rd_buff[ 5], rd_buff[ 4], rd_buff[ 3],
-                            rd_buff[ 3], rd_buff[ 2], rd_buff[ 1], wr_buff[ 0]
-                        };
-                    end
-                    STORING: begin
-                        dcache_ena <= `TRUE;
-                    end
-                endcase
+                ram_rw_sel <= READ;
+                counter <= 0;
+                rob_st_done <= `TRUE;
             end
             else begin
-                ram_wr_byte <= wr_buff[byte_off+1];
-                rd_buff[byte_off] <= ram_rd_byte;
-                ram_addr <= ram_addr + 8;
-                byte_off <= byte_off + 1;
+                ram_rw_sel <= WRITE;
+                counter <= counter + 1;
+                ram_addr <= ram_addr + 1;
+                ram_wr_byte <= st_bytes[counter + 1];
+            end
+        end
+        // loading data to cdb
+        else if (mc_stat == LOADING) begin
+            ram_rw_start <= `FALSE;
+            rd_buff[counter] <= ram_rd_byte;
+            if (counter == slb_ld_len) begin
+                mc_stat <= IDLE;
+                ram_rw_sel <= READ;
+                counter <= 0;
+                rob_st_done <= `TRUE;
+                cdb_ld_ena <= `TRUE;
+                cdb_ld_src <= slb_ld_src;
+                cdb_ld_val <= 
+                    (slb_ld_len == 0? {{24{rd_buff[0][7]}}, rd_buff[0]} :
+                    (slb_ld_len == 3? {{16{rd_buff[1][7]}}, rd_buff[1], rd_buff[0]} :
+                    {rd_buff[3], rd_buff[2], rd_buff[1], rd_buff[0]}));
+            end
+            else begin
+                ram_rw_sel <= READ;
+                counter <= counter + 1;
+                ram_addr <= ram_addr + 1;
+            end
+        end
+        // fetching data to icache
+        else if (mc_stat == FETCHING) begin
+            ram_rw_start <= `FALSE;
+            rd_buff[counter] <= ram_rd_byte;
+            if (!ram_rw_start && counter == 15) begin
+                mc_stat <= IDLE;
+                ram_rw_sel <= READ;
+                counter <= 0;
+                icache_fc_done <= `TRUE;
+                icache_fc_line <= {
+                    ram_rd_byte, rd_buff[14], rd_buff[13], rd_buff[12],
+                    rd_buff[11], rd_buff[10], rd_buff[ 9], rd_buff[ 8],
+                    rd_buff[ 7], rd_buff[ 6], rd_buff[ 5], rd_buff[ 4],
+                    rd_buff[ 3], rd_buff[ 2], rd_buff[ 1], rd_buff[ 0]
+                };
+            end
+            else begin
+                ram_rw_sel <= READ;
+                counter <= counter + 1;
+                ram_addr <= ram_addr + 1;
             end
         end
     end
 end
     
 endmodule
+
+`endif 

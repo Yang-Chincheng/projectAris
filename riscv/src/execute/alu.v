@@ -1,4 +1,7 @@
-`include "../utils.v"
+`ifndef ALU_V_ 
+`define ALU_V_ 
+
+`include "/home/Modem514/projectAris/riscv/src/utils.v"
 
 module ALU (
     input wire clk,
@@ -69,3 +72,5 @@ always @(*) begin
 end
     
 endmodule
+
+`endif 
