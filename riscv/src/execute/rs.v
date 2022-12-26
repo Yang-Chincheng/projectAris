@@ -22,6 +22,9 @@ module RS #(
     output wire rs_empty,
 
     // idu
+`ifdef DEBUG
+    input wire [`WORD_TP] id_inst,
+`endif
     input wire id_valid, 
     input wire [`INST_OPT_TP] id_opt,
     input wire [`ROB_IDX_TP] id_src1,
@@ -32,6 +35,9 @@ module RS #(
     input wire [`ROB_IDX_TP] id_rob_idx,
 
     // alu
+`ifdef DEBUG
+    output reg [`WORD_TP] alu_inst,
+`endif
     output reg alu_ena,
     output reg [`INST_OPT_TP] alu_opt,
     output reg [`WORD_TP] alu_val1,
@@ -48,6 +54,9 @@ module RS #(
     input wire [`WORD_TP] cdb_ld_val
 );
 
+`ifdef DEBUG
+reg [`WORD_TP] inst[RS_SIZE-1:0];
+`endif 
 reg                busy [RS_SIZE-1:0]; 
 reg [`INST_OPT_TP] opt  [RS_SIZE-1:0];
 reg [`ROB_IDX_TP]  src1 [RS_SIZE-1:0];
@@ -70,11 +79,41 @@ wire [RS_BIT-1:0] idle_idx =
     (!busy[ 8]?  8: (!busy[ 9]?  9: (!busy[10]? 10: (!busy[11]? 11:
     (!busy[12]? 12: (!busy[13]? 13: (!busy[14]? 14: (!busy[15]? 15: 4'bxxxx
     ))))))))))))))));
+wire exec_rdy = 
+    (busy[ 0] && src1[ 0] == 0 && src2[ 0] == 0) ||
+    (busy[ 1] && src1[ 1] == 0 && src2[ 1] == 0) ||
+    (busy[ 2] && src1[ 2] == 0 && src2[ 2] == 0) ||
+    (busy[ 3] && src1[ 3] == 0 && src2[ 3] == 0) ||
+    (busy[ 4] && src1[ 4] == 0 && src2[ 4] == 0) ||
+    (busy[ 5] && src1[ 5] == 0 && src2[ 5] == 0) ||
+    (busy[ 6] && src1[ 6] == 0 && src2[ 6] == 0) ||
+    (busy[ 7] && src1[ 7] == 0 && src2[ 7] == 0) ||
+    (busy[ 8] && src1[ 8] == 0 && src2[ 8] == 0) ||
+    (busy[ 9] && src1[ 9] == 0 && src2[ 9] == 0) ||
+    (busy[10] && src1[10] == 0 && src2[10] == 0) ||
+    (busy[11] && src1[11] == 0 && src2[11] == 0) ||
+    (busy[12] && src1[12] == 0 && src2[12] == 0) ||
+    (busy[13] && src1[13] == 0 && src2[13] == 0) ||
+    (busy[14] && src1[14] == 0 && src2[14] == 0) ||
+    (busy[15] && src1[15] == 0 && src2[15] == 0);
+
 wire [RS_BIT-1:0] exec_idx = 
-    (busy[ 0]?  0: (busy[ 1]?  1: (busy[ 2]?  2: (busy[ 3]?  3:
-    (busy[ 4]?  4: (busy[ 5]?  5: (busy[ 6]?  6: (busy[ 7]?  7:
-    (busy[ 8]?  8: (busy[ 9]?  9: (busy[10]? 10: (busy[11]? 11:
-    (busy[12]? 12: (busy[13]? 13: (busy[14]? 14: (busy[15]? 15: 4'bxxxx
+    (busy[ 0] && src1[ 0] == 0 && src2[ 0] == 0?  0: 
+    (busy[ 1] && src1[ 1] == 0 && src2[ 1] == 0?  1: 
+    (busy[ 2] && src1[ 2] == 0 && src2[ 2] == 0?  2: 
+    (busy[ 3] && src1[ 3] == 0 && src2[ 3] == 0?  3:
+    (busy[ 4] && src1[ 4] == 0 && src2[ 4] == 0?  4: 
+    (busy[ 5] && src1[ 5] == 0 && src2[ 5] == 0?  5: 
+    (busy[ 6] && src1[ 6] == 0 && src2[ 6] == 0?  6: 
+    (busy[ 7] && src1[ 7] == 0 && src2[ 7] == 0?  7:
+    (busy[ 8] && src1[ 8] == 0 && src2[ 8] == 0?  8: 
+    (busy[ 9] && src1[ 9] == 0 && src2[ 9] == 0?  9: 
+    (busy[10] && src1[10] == 0 && src2[10] == 0? 10: 
+    (busy[11] && src1[11] == 0 && src2[11] == 0? 11:
+    (busy[12] && src1[12] == 0 && src2[12] == 0? 12: 
+    (busy[13] && src1[13] == 0 && src2[13] == 0? 13: 
+    (busy[14] && src1[14] == 0 && src2[14] == 0? 14: 
+    (busy[15] && src1[15] == 0 && src2[15] == 0? 15: 4'bxxxx
     ))))))))))))))));
 
 // wire idle_flag3 = busy[ 7] & busy[ 6] & busy[ 5] & busy[4] & busy[3] & busy[2] & busy[1] & busy[0];
@@ -147,8 +186,12 @@ always @(posedge clk) begin
     lag_rs_siz <= rs_siz;
 
     if (rst || rs_rb) begin
+        lag_rs_siz <= 0;
         for (i = 0; i < RS_SIZE; i++) begin
             busy[i] = `FALSE;
+`ifdef DEBUG
+    inst[i] = 0;
+`endif
             opt [i] = `OPT_NONE;
             src1[i] = `ZERO_ROB_IDX;
             src2[i] = `ZERO_ROB_IDX;
@@ -165,6 +208,9 @@ always @(posedge clk) begin
         // issue
         if (id_valid) begin 
             busy[idle_idx] <= `TRUE;
+`ifdef DEBUG
+    inst[idle_idx] <= id_inst;
+`endif 
             opt [idle_idx] <= id_opt;
             src1[idle_idx] <= upd_src1;
             src2[idle_idx] <= upd_src2;
@@ -175,7 +221,11 @@ always @(posedge clk) begin
             rs_push_flag <= `TRUE;
         end
         // execute
-        if (!rs_empty) begin
+        if (exec_rdy) begin
+`ifdef DEBUG
+    alu_inst <= inst[exec_idx];
+`endif
+            alu_ena <= `TRUE;
             busy[exec_idx] <= `FALSE;
             alu_ena  <= `TRUE;
             alu_opt  <= opt [exec_idx];
@@ -189,10 +239,20 @@ always @(posedge clk) begin
         if (cdb_alu_valid) begin
             for (i = 0; i < RS_SIZE; i++) begin
                 if (busy[i] && src1[i] == cdb_alu_src) begin
+`ifdef DEBUG
+// if (1) begin
+    // $display("src1 upd %h, %h", cdb_alu_src, cdb_alu_val);
+// end
+`endif
                     src1[i] <= `ZERO_ROB_IDX;
                     val1[i] <= cdb_alu_val;
                 end
                 if (busy[i] && src2[i] == cdb_alu_src) begin
+`ifdef DEBUG
+// if (cdb_alu_src == 6) begin
+    // $display("src2 upd %h, %h", cdb_alu_src, cdb_alu_val);
+// end
+`endif
                     src2[i] <= `ZERO_ROB_IDX;
                     val2[i] <= cdb_alu_val;
                 end
@@ -208,6 +268,9 @@ always @(posedge clk) begin
                     src2[i] <= `ZERO_ROB_IDX;
                     val2[i] <= cdb_ld_val;
                 end
+`ifdef DEBUG
+// $display("src = %h, val = %h", cdb_alu_src, cdb_alu_val);
+`endif 
             end
         end
     end

@@ -45,8 +45,14 @@ assign cache_rd_addr = pc;
 assign bp_pb_pc = pc;
 assign bp_pb_inst = cache_hit_inst;
 
+wire [`ADDR_TP] dbg_nex_pc = (bp_pd_tk? jump_pc: succ_pc);
+wire [`ADDR_TP] dbg_mis_pc = (bp_pd_tk? succ_pc: jump_pc);
+
+
 wire [`ADDR_TP] succ_pc = pc + `NEXT_PC_INC;
 wire [`ADDR_TP] jump_pc = pc + bp_pd_off;
+
+integer cnt = 0;
 
 always @(posedge clk) begin
     id_ena <= `FALSE;
@@ -60,7 +66,11 @@ always @(posedge clk) begin
     else if (if_rb) begin
         pc <= rob_rb_pc;
     end
-    else if (cache_hit) begin
+    else if (cache_hit && cache_hit_inst != 0) begin
+// `ifdef DEBUG    
+//     cnt = cnt + 1;
+//     $display("%d. inst = %h @%h", cnt, cache_hit_inst, pc);
+// `endif
         // send inst to idu
         id_inst <= cache_hit_inst;
         id_cur_pc <= pc;

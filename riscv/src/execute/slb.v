@@ -38,6 +38,13 @@ module SLB #(
     input wire [`WORD_TP] id_imm,
     input wire [`ROB_IDX_TP] id_rob_idx,
     
+`ifdef DEBUG
+    input wire [`WORD_TP] id_inst, 
+    output wire [`WORD_TP] dbg_inst,   
+    output wire [`ROB_IDX_TP] dbg_src1,
+    output wire dbg_isld,
+`endif
+
     // memctrl
     output reg mc_ld_ena,
     output reg [`ADDR_TP] mc_ld_addr,
@@ -75,9 +82,17 @@ wire [SLB_BIT-1:0] slb_siz = lag_slb_siz + (slb_push_flag? 1: 0) + (slb_pop_flag
 assign slb_full  = (slb_siz >= SLB_SIZE - 3);
 assign slb_empty = (slb_siz == 0);
 
+assign rob_st_idx = dest[slb_head];
+
 reg [SLB_BIT-1:0] slb_head; // queue element index [slb_head, slb_tail) 
 reg [SLB_BIT-1:0] slb_tail;
 
+`ifdef DEBUG
+reg [`WORD_TP] inst[SLB_SIZE-1:0];
+assign dbg_inst = inst[slb_head];
+assign dbg_src1 = src1[slb_head];
+assign dbg_isld = isld[slb_head];
+`endif 
 reg                busy[SLB_SIZE-1:0];
 reg [`INST_OPT_TP] opt [SLB_SIZE-1:0];
 reg [`ROB_IDX_TP]  src1[SLB_SIZE-1:0];
@@ -107,9 +122,10 @@ always @(posedge clk) begin
     rob_ena <= `FALSE;
     slb_push_flag <= `FALSE;
     slb_pop_flag <= `FALSE;
-        
+    lag_slb_siz <= slb_siz;
 
     if (rst || slb_rb) begin
+        mc_ld_ena <= `FALSE;
         lag_slb_siz <= 0;
         slb_push_flag <= `FALSE;
         slb_pop_flag <= `FALSE;
@@ -117,6 +133,9 @@ always @(posedge clk) begin
         slb_tail <= 0;
         slb_stat <= IDLE;
         for (i = 0; i < SLB_SIZE; i++) begin
+`ifdef DEBUG
+    inst[i] <= 0;
+`endif
             busy[i] <= `FALSE;
             opt [i] <= `OPT_NONE;
             src1[i] <= `ZERO_ROB_IDX;
@@ -131,10 +150,11 @@ always @(posedge clk) begin
         // STALL
     end
     else begin
-        slb_push_flag <= `FALSE;
-        slb_pop_flag <= `FALSE;
         // issue
         if (id_valid) begin
+`ifdef DEBUG
+    inst[slb_tail] <= id_inst;
+`endif
             busy[slb_tail] <= `TRUE;
             opt [slb_tail] <= id_opt;
             src1[slb_tail] <= upd_src1;
@@ -153,6 +173,7 @@ always @(posedge clk) begin
             if (slb_stat == IDLE && ld_rdy) begin
                 slb_stat <= LOADING;
                 mc_ld_ena <= `TRUE;
+                mc_ld_src <= dest[slb_head];
                 mc_ld_addr <= val1[slb_head] + imm[slb_head];
                 mc_ld_len <= (opt[slb_head] == `OPT_LB? 0: (opt[slb_head] == `OPT_LH? 1: 3));
                 slb_pop_flag <= `TRUE;
@@ -165,12 +186,18 @@ always @(posedge clk) begin
                     slb_pop_flag <= `TRUE;
                     slb_head <= slb_head + 1;
                     busy[slb_head] <= `FALSE;
+`ifdef DEBUG
+    // $display("slb2 %h", inst[slb_head]);
+`endif 
                 end
                 else begin
                     rob_ena <= `TRUE;
-                    rob_src <= src2[slb_head];
+                    rob_src <= dest[slb_head];
                     rob_val <= val2[slb_head];
                     rob_addr <= val1[slb_head] + imm[slb_head];
+`ifdef DEBUG
+    // $display("slb1 %h", inst[slb_head]);
+`endif 
                 end
             end
         end
@@ -181,19 +208,29 @@ always @(posedge clk) begin
         // update
         if (cdb_alu_valid && !slb_empty) begin
             for (i = 0; i < SLB_SIZE; i++) begin
-                if (busy[i] && src1[i] == cdb_alu_src) val1[i] <= cdb_alu_val;
-                if (busy[i] && src2[i] == cdb_alu_src) val2[i] <= cdb_alu_val;
+                if (busy[i] && src1[i] == cdb_alu_src) begin
+                    src1[i] <= `ZERO_ROB_IDX;
+                    val1[i] <= cdb_alu_val;
+                end
+                if (busy[i] && src2[i] == cdb_alu_src) begin
+                    src2[i] <= `ZERO_ROB_IDX;
+                    val2[i] <= cdb_alu_val;
+                end
             end
         end
         if (cdb_ld_valid && !slb_empty) begin
             for (i = 0; i < SLB_SIZE; i++) begin
-                if (busy[i] && src1[i] == cdb_ld_src) val1[i] <= cdb_ld_val;
-                if (busy[i] && src2[i] == cdb_ld_src) val2[i] <= cdb_ld_val;
+                if (busy[i] && src1[i] == cdb_ld_src) begin
+                    src1[i] <= `ZERO_ROB_IDX;
+                    val1[i] <= cdb_ld_val;
+                end
+                if (busy[i] && src2[i] == cdb_ld_src) begin
+                    src2[i] <= `ZERO_ROB_IDX;
+                    val2[i] <= cdb_ld_val;
+                end
             end
         end
-
     end
-    lag_slb_siz <= slb_siz;
 end
     
 endmodule

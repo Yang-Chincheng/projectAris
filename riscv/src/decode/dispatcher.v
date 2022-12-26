@@ -44,6 +44,10 @@ module dispatcher(
     output reg [`ROB_IDX_TP] reg_rn_idx,
     
     // rs
+`ifdef DEBUG
+    output reg [`WORD_TP] rs_inst,
+    output reg [`WORD_TP] slb_inst,
+`endif
     input wire rs_full,
     output reg rs_ena,
     output reg [`INST_OPT_TP] rs_opt,
@@ -77,6 +81,9 @@ module dispatcher(
     input wire [`WORD_TP] rob_val1,
     input wire [`WORD_TP] rob_val2,
     
+`ifdef DEBUG
+    output reg [`WORD_TP] rob_inst,
+`endif
     output reg rob_ena,
     output reg [`INST_OPT_TP] rob_opt,
     output reg [`REG_IDX_TP] rob_dest,
@@ -135,6 +142,9 @@ always @(posedge clk) begin
     else if (if_valid) begin
         // issue to slb
         if (dec_is_ls) begin
+`ifdef DEBUG
+    slb_inst <= if_inst;
+`endif
             slb_ena <= `TRUE;
             slb_opt <= dec_opt;
             slb_imm <= dec_imm;
@@ -159,6 +169,9 @@ always @(posedge clk) begin
         end
         // issue to rs
         else begin
+`ifdef DEBUG
+    rs_inst <= if_inst;
+`endif
             rs_ena <= `TRUE;
             rs_opt <= dec_opt;
             rs_imm <= dec_imm;
@@ -193,6 +206,9 @@ always @(posedge clk) begin
         end
 
         // issue to rob
+`ifdef DEBUG
+    rob_inst <= if_inst;
+`endif
         rob_ena <= `TRUE;
         rob_opt <= dec_opt;
         rob_cur_pc <= if_cur_pc;
@@ -206,9 +222,11 @@ always @(posedge clk) begin
             end
             `TYPE_R, `TYPE_J, `TYPE_U, `TYPE_I: begin
                 rob_dest <= dec_rd;
-                reg_rn_ena <= `TRUE;
-                reg_rn_rd <= dec_rd;
-                reg_rn_idx <= rob_idx;
+                if (dec_rd != 0) begin
+                    reg_rn_ena <= `TRUE;
+                    reg_rn_rd <= dec_rd;
+                    reg_rn_idx <= rob_idx;
+                end
             end
             default: begin end
         endcase

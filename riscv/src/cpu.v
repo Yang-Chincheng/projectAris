@@ -1,5 +1,8 @@
 // RISCV32I CPU top module
 // port modification allowed for debugging purposes
+
+`define DEBUG
+
 `include "utils.v"
 `include "fetch/fetcher.v"
 `include "fetch/predictor.v"
@@ -13,6 +16,7 @@
 `include "memory/icache.v"
 `include "memory/dcache.v"
 `include "memory/memctrl.v"
+
 
 module cpu (
            input  wire                 clk_in,			// system clock signal
@@ -177,6 +181,10 @@ wire [`ADDR_TP] id_to_rob_cur_pc;
 wire [`ADDR_TP] id_to_rob_mis_pc;
 wire id_to_rob_pb_tk_stat;
 
+`ifdef DEBUG
+wire [`WORD_TP] id_to_rob_inst, id_to_rs_inst, id_to_slb_inst;
+`endif
+
 dispatcher cpu_dispatcher(
     .clk(clk_in), // system clock
     .rst(rst_in), // reset signal
@@ -217,6 +225,10 @@ dispatcher cpu_dispatcher(
     .reg_rn_idx(id_to_reg_rn_idx),
     
     // rs
+`ifdef DEBUG
+    .rs_inst(id_to_rs_inst),
+    .slb_inst(id_to_slb_inst),
+`endif
     .rs_full(rs_to_id_full),
     .rs_ena(id_to_rs_ena),
     .rs_opt(id_to_rs_opt),
@@ -240,6 +252,9 @@ dispatcher cpu_dispatcher(
     .slb_isld(id_to_slb_isld),
 
     // rob
+`ifdef DEBUG
+    .rob_inst(id_to_rob_inst),
+`endif
     .rob_full(rob_to_id_full),
     .rob_idx(rob_to_id_idx),
     .rob_src1(id_to_rob_src1),
@@ -284,6 +299,10 @@ wire [`WORD_TP] rs_to_alu_val2;
 wire [`WORD_TP] rs_to_alu_imm;
 wire [`ROB_IDX_TP] rs_to_alu_rob_idx;
 
+`ifdef DEBUG
+wire [`WORD_TP] rs_to_alu_inst;
+`endif
+
 RS cpu_rs(
     .clk(clk_in),
     .rst(rst_in),
@@ -295,7 +314,10 @@ RS cpu_rs(
     .rs_empty(),
     .rs_full(rs_to_id_full),
 
-    // idu  
+    // idu 
+`ifdef DEBUG
+    .id_inst(id_to_rs_inst),
+`endif 
     .id_valid(id_to_rs_ena), 
     .id_opt(id_to_rs_opt),
     .id_src1(id_to_rs_src1),
@@ -306,6 +328,9 @@ RS cpu_rs(
     .id_rob_idx(id_to_rs_rob_idx),
 
     // alu
+`ifdef DEBUG
+    .alu_inst(rs_to_alu_inst),
+`endif
     .alu_ena(rs_to_alu_ena),
     .alu_opt(rs_to_alu_opt),
     .alu_val1(rs_to_alu_val1),
@@ -348,6 +373,9 @@ SLB cpu_slb(
     .slb_empty(),
 
     // idu
+`ifdef DEBUG
+    .id_inst(id_to_slb_inst),
+`endif
     .id_valid(id_to_slb_ena),
     .id_opt(id_to_slb_opt),
     .id_src1(id_to_slb_src1),
@@ -390,6 +418,7 @@ wire [`WORD_TP] id_val2;
 wire rob_to_reg_wr_ena;
 wire [`REG_IDX_TP] rob_to_reg_wr_rd;
 wire [`WORD_TP] rob_to_reg_wr_val;
+wire [`ROB_IDX_TP] rob_to_reg_wr_idx;
 
 regfile cpu_regfile(
     .clk(clk_in),
@@ -407,6 +436,11 @@ regfile cpu_regfile(
     .id_src2(reg_to_id_src2),
     .id_val1(reg_to_id_val1),
     .id_val2(reg_to_id_val2),
+
+`ifdef DEBUG
+    .dbg_val(),
+    .dbg_src(),
+`endif
     
     .id_rn_ena(id_to_reg_rn_ena),
     .id_rn_rd(id_to_reg_rn_rd),
@@ -415,7 +449,8 @@ regfile cpu_regfile(
     // rob
     .rob_wr_ena(rob_to_reg_wr_ena),
     .rob_wr_rd(rob_to_reg_wr_rd),
-    .rob_wr_val(rob_to_reg_wr_val)
+    .rob_wr_val(rob_to_reg_wr_val),
+    .rob_wr_idx(rob_to_reg_wr_idx)
 );
 
 ALU cpu_alu(
@@ -425,7 +460,12 @@ ALU cpu_alu(
 
     .alu_en(`TRUE),
     .alu_st(`FALSE),
+    
     // rs
+`ifdef DEBUG
+    .rs_inst(rs_to_alu_inst),
+`endif 
+    .rs_valid(rs_to_alu_ena),
     .rs_opt(rs_to_alu_opt),
     .rs_val1(rs_to_alu_val1),
     .rs_val2(rs_to_alu_val2),
@@ -468,6 +508,12 @@ ROB cpu_rob(
     .id_val1(rob_to_id_val1),
     .id_val2(rob_to_id_val2),
     
+`ifdef DEBUG
+    .id_inst(id_to_rob_inst),
+    .head_rdy(),
+    .commit_cnt(),
+    .commit_inst(),
+`endif
     .id_valid(id_to_rob_ena),
     .id_opt(id_to_rob_opt),
     .id_dest(id_to_rob_dest),
@@ -481,6 +527,7 @@ ROB cpu_rob(
     .reg_wr_ena(rob_to_reg_wr_ena),
     .reg_wr_rd(rob_to_reg_wr_rd),
     .reg_wr_val(rob_to_reg_wr_val),
+    .reg_wr_idx(rob_to_reg_wr_idx),
     
     // slb
     .slb_valid(slb_to_rob_ena),

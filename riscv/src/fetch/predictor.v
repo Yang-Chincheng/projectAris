@@ -37,7 +37,7 @@ integer i;
 wire [`ADDR_HASH] pd_pc_hash = pd_pc[`ADDR_HASH];
 wire [`ADDR_HASH] fb_pc_hash = fb_pc[`ADDR_HASH];
 
-wire [`OPC_RG] opc = pd_pc[`OPC_RG];
+wire [`OPC_RG] opc = pd_inst[`OPC_RG];
 assign pd_tk = (opc == `OPC_BR)? 
     (bht[pd_pc_hash] >= WEK_TK) :
     ((opc == `OPC_JAL)? `TRUE: `FALSE);

@@ -37,7 +37,7 @@ module memctrl(
     input wire [3:0] slb_ld_len,
     input wire [`ROB_IDX_TP] slb_ld_src,
     output reg slb_ld_done,
-    output reg [`WORD_TP] slb_ld_data,
+    output wire [`WORD_TP] slb_ld_data,
     
     // cdb
     output reg cdb_ld_ena,
@@ -52,7 +52,7 @@ module memctrl(
 );
 
 wire [`BYTE_TP] st_bytes[3:0];
-assign {st_bytes[0], st_bytes[1], st_bytes[2], st_bytes[3]} = rob_st_data;
+assign {st_bytes[3], st_bytes[2], st_bytes[1], st_bytes[0]} = rob_st_data;
 
 parameter READ = 0, WRITE = 1;
 parameter IDLE = 0, FETCHING = 1, LOADING = 2, STORING = 3;
@@ -64,7 +64,15 @@ reg [`BYTE_TP] rd_buff[15:0];
 
 integer i;
 
+`ifdef DEBUG
+assign slb_ld_data =                     
+    (slb_ld_len == 0? {{24{rd_buff[0][7]}}, rd_buff[0]} :
+    (slb_ld_len == 1? {{16{rd_buff[1][7]}}, rd_buff[1], rd_buff[0]} :
+    {rd_buff[3], rd_buff[2], rd_buff[1], rd_buff[0]}));
+`endif 
+
 always @(posedge clk) begin
+    cdb_ld_ena <= `FALSE;
     rob_st_done <= `FALSE;
     slb_ld_done <= `FALSE;
     icache_fc_done <= `FALSE;
@@ -133,12 +141,12 @@ always @(posedge clk) begin
                 mc_stat <= IDLE;
                 ram_rw_sel <= READ;
                 counter <= 0;
-                rob_st_done <= `TRUE;
+                slb_ld_done <= `TRUE;
                 cdb_ld_ena <= `TRUE;
                 cdb_ld_src <= slb_ld_src;
                 cdb_ld_val <= 
                     (slb_ld_len == 0? {{24{rd_buff[0][7]}}, rd_buff[0]} :
-                    (slb_ld_len == 3? {{16{rd_buff[1][7]}}, rd_buff[1], rd_buff[0]} :
+                    (slb_ld_len == 1? {{16{rd_buff[1][7]}}, rd_buff[1], rd_buff[0]} :
                     {rd_buff[3], rd_buff[2], rd_buff[1], rd_buff[0]}));
             end
             else begin

@@ -11,6 +11,10 @@ module ALU (
     input wire alu_en,
     input wire alu_st,
     // rs
+`ifdef DEBUG
+    input wire [`WORD_TP] rs_inst,
+`endif
+    input wire rs_valid,
     input wire [`INST_OPT_TP] rs_opt,
     input wire [`WORD_TP] rs_val1,
     input wire [`WORD_TP] rs_val2,
@@ -24,15 +28,25 @@ module ALU (
     output reg cdb_alu_tk
 );
 
+integer cnt = 0;
+
 always @(*) begin
-    cdb_alu_valid = `FALSE;
     if (rst) begin
         // RESET
+        cdb_alu_valid = `FALSE;
+        cdb_alu_src = 0;
+        cdb_alu_val = 0;
+        cdb_alu_tk = 0;
     end
     else if (!rdy || !alu_en || alu_st) begin
         // STALL
+        cdb_alu_valid = `FALSE;
+        cdb_alu_src = 0;
+        cdb_alu_val = 0;
+        cdb_alu_tk = 0;
     end
-    else begin
+    else if (rs_valid) begin
+        cdb_alu_valid = rs_rob_idx != 0;
         cdb_alu_val = `ZERO_WORD;
         cdb_alu_src = rs_rob_idx;
         case (rs_opt)
@@ -42,7 +56,7 @@ always @(*) begin
             `OPT_JALR:  cdb_alu_val = rs_val1  +  rs_imm ;
             `OPT_ADD:   cdb_alu_val = rs_val1  +  rs_val2;
             `OPT_ADDI:  cdb_alu_val = rs_val1  +  rs_imm ;
-            `OPT_SUB:   cdb_alu_val = rs_val1  -  rs_imm ;
+            `OPT_SUB:   cdb_alu_val = rs_val1  -  rs_val2;
             `OPT_AND:   cdb_alu_val = rs_val1  &  rs_val2;
             `OPT_ANDI:  cdb_alu_val = rs_val1  &  rs_imm ;
             `OPT_OR:    cdb_alu_val = rs_val1  |  rs_val2;
@@ -67,7 +81,21 @@ always @(*) begin
             `OPT_BGEU:  cdb_alu_tk  = (rs_val1 >= rs_val2);
             default: begin end
         endcase
-        cdb_alu_valid = `TRUE;
+`ifdef DEBUG
+    cnt++;
+    if (rs_inst == 32'h00161613) begin
+        // $display("alu inst = %h, opt = %h", rs_inst, rs_opt);
+        // $display("alu val1 = %h, val2 = %h, imm = %h", rs_val1, rs_val2, rs_imm);
+    end
+`endif
+        // $display("val1 = %h, val2 = %h, imm = %h", rs_val1, rs_val2, rs_imm);
+        // $display("opt = %h, val = %h, src = %h", rs_opt, cdb_alu_val, cdb_alu_src);
+    end
+    else begin
+        cdb_alu_valid = `FALSE;
+        cdb_alu_src = 0;
+        cdb_alu_val = 0;
+        cdb_alu_tk = 0;
     end
 end
     

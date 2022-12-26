@@ -55,6 +55,7 @@ reg [`LINE_TP] dat [LINE_NUM-1:0];
 
 integer i;
 
+wire [`IDX_RG] upd_idx = mc_fc_addr[`IDX_RG];
 wire [`IDX_RG] if_idx = if_addr[`IDX_RG];
 assign if_cache_hit = valid[if_idx] && tag[if_idx] == if_addr[`TAG_RG];
 assign if_hit_word = (if_addr[3]? 
@@ -83,9 +84,9 @@ always @(posedge clk) begin
         if (cache_stat == FETCHING && mc_fc_done) begin
             cache_stat <= IDLE;
             mc_fc_ena <= `FALSE;
-            valid[if_idx] <= `TRUE;
-            tag[if_idx] <= mc_fc_addr[`TAG_RG];
-            dat[if_idx] <= mc_fc_line;
+            valid[upd_idx] <= `TRUE;
+            tag[upd_idx] <= mc_fc_addr[`TAG_RG];
+            dat[upd_idx] <= mc_fc_line;
             cache_stat <= IDLE;
         end
     end
