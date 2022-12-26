@@ -2,8 +2,8 @@
 // port modification allowed for debugging purposes
 
 `define DEBUG
-`define LOWER_BOUND 000 
-`define UPPER_BOUND 200
+`define LOWER_BOUND 2300 
+`define UPPER_BOUND 2600
 
 `include "utils.v"
 `include "fetch/fetcher.v"

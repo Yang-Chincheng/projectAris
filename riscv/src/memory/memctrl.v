@@ -151,9 +151,9 @@ always @(posedge clk) begin
                     cdb_ld_ena <= `TRUE;
                     cdb_ld_src <= slb_ld_src;
                     cdb_ld_val <= 
-                        (slb_ld_len == 0? {{24{rd_buff[0][7]}}, rd_buff[0]} :
-                        (slb_ld_len == 1? {{16{rd_buff[1][7]}}, rd_buff[1], rd_buff[0]} :
-                        {rd_buff[3], rd_buff[2], rd_buff[1], rd_buff[0]}));
+                        (slb_ld_len == 0? {{24{ram_rd_byte[7]}}, ram_rd_byte} :
+                        (slb_ld_len == 1? {{16{ram_rd_byte[7]}}, ram_rd_byte, rd_buff[0]} :
+                        {ram_rd_byte, rd_buff[2], rd_buff[1], rd_buff[0]}));
                 end
                 else begin
                     ram_rw_sel <= READ;
