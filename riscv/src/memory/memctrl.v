@@ -135,24 +135,31 @@ always @(posedge clk) begin
         end
         // loading data to cdb
         else if (mc_stat == LOADING) begin
-            ram_rw_start <= `FALSE;
-            rd_buff[counter] <= ram_rd_byte;
-            if (counter == slb_ld_len) begin
+            if (mc_rb) begin
                 mc_stat <= IDLE;
-                ram_rw_sel <= READ;
                 counter <= 0;
-                slb_ld_done <= `TRUE;
-                cdb_ld_ena <= `TRUE;
-                cdb_ld_src <= slb_ld_src;
-                cdb_ld_val <= 
-                    (slb_ld_len == 0? {{24{rd_buff[0][7]}}, rd_buff[0]} :
-                    (slb_ld_len == 1? {{16{rd_buff[1][7]}}, rd_buff[1], rd_buff[0]} :
-                    {rd_buff[3], rd_buff[2], rd_buff[1], rd_buff[0]}));
+                ram_rw_sel <= READ;
             end
             else begin
-                ram_rw_sel <= READ;
-                counter <= counter + 1;
-                ram_addr <= ram_addr + 1;
+                ram_rw_start <= `FALSE;
+                rd_buff[counter] <= ram_rd_byte;
+                if (counter == slb_ld_len) begin
+                    mc_stat <= IDLE;
+                    ram_rw_sel <= READ;
+                    counter <= 0;
+                    slb_ld_done <= `TRUE;
+                    cdb_ld_ena <= `TRUE;
+                    cdb_ld_src <= slb_ld_src;
+                    cdb_ld_val <= 
+                        (slb_ld_len == 0? {{24{rd_buff[0][7]}}, rd_buff[0]} :
+                        (slb_ld_len == 1? {{16{rd_buff[1][7]}}, rd_buff[1], rd_buff[0]} :
+                        {rd_buff[3], rd_buff[2], rd_buff[1], rd_buff[0]}));
+                end
+                else begin
+                    ram_rw_sel <= READ;
+                    counter <= counter + 1;
+                    ram_addr <= ram_addr + 1;
+                end
             end
         end
         // fetching data to icache

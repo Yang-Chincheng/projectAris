@@ -6,9 +6,6 @@
 `define ROB_BIT `ROB_IDX_LN
 `define ROB_SIZE (1 << `ROB_BIT)
 
-`define LOWER_BOUND 300 
-`define UPPER_BOUND 1000
-
 /**
  * TODO:
  * (1) JALR: stall before result is calculated (which part of function is stalled?)
