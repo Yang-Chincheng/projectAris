@@ -1,7 +1,11 @@
 `ifndef ALU_V_ 
 `define ALU_V_ 
 
-`include "/home/Modem514/projectAris/riscv/src/utils.v"
+`ifdef ONLINE_JUDGE
+    `include "utils.v"
+`else 
+    `include "/home/Modem514/projectAris/riscv/src/utils.v"
+`endif
 
 module ALU (
     input wire clk,

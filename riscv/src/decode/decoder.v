@@ -1,7 +1,11 @@
 `ifndef DECODER_V_ 
 `define DECODER_V_
 
-`include "/home/Modem514/projectAris/riscv/src/utils.v"
+`ifdef ONLINE_JUDGE
+    `include "utils.v"
+`else 
+    `include "/home/Modem514/projectAris/riscv/src/utils.v"
+`endif
 
 `define OPC_RG  6: 0
 `define FN3_RG 14:12

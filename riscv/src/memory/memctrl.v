@@ -1,7 +1,11 @@
 `ifndef MEMCTRL_V_ 
 `define MEMCTRL_V_ 
 
-`include "/home/Modem514/projectAris/riscv/src/utils.v"
+`ifdef ONLINE_JUDGE
+    `include "utils.v"
+`else 
+    `include "/home/Modem514/projectAris/riscv/src/utils.v"
+`endif
 
 `define LINE_TP 127:0
 `define OFF3_RG 127:96

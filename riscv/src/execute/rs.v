@@ -1,7 +1,11 @@
 `ifndef RS_V_ 
 `define RS_V_ 
 
-`include "/home/Modem514/projectAris/riscv/src/utils.v"
+`ifdef ONLINE_JUDGE
+    `include "utils.v"
+`else 
+    `include "/home/Modem514/projectAris/riscv/src/utils.v"
+`endif
 
 `define RS_BIT 4
 `define RS_SIZE (1 << `RS_BIT)

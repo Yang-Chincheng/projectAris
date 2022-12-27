@@ -1,7 +1,11 @@
 `ifndef ICACHE_V
 `define ICACHE_V
 
-`include "/home/Modem514/projectAris/riscv/src/utils.v"
+`ifdef ONLINE_JUDGE
+    `include "utils.v"
+`else 
+    `include "/home/Modem514/projectAris/riscv/src/utils.v"
+`endif
 
 `define LINE_NUM 256
 `define LINE_SZ 4

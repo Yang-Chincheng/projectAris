@@ -1,7 +1,11 @@
 `ifndef FETCHER_V_ 
 `define FETCHER_V_ 
 
-`include "/home/Modem514/projectAris/riscv/src/utils.v"
+`ifdef ONLINE_JUDGE
+    `include "utils.v"
+`else 
+    `include "/home/Modem514/projectAris/riscv/src/utils.v"
+`endif
 
 module fetcher(
            input wire clk, // system clock

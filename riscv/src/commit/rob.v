@@ -1,7 +1,11 @@
 `ifndef ROB_V_ 
 `define ROB_V_
 
-`include "/home/Modem514/projectAris/riscv/src/utils.v"
+`ifdef ONLINE_JUDGE
+    `include "utils.v"
+`else 
+    `include "/home/Modem514/projectAris/riscv/src/utils.v"
+`endif
 
 `define ROB_BIT `ROB_IDX_LN
 `define ROB_SIZE (1 << `ROB_BIT)
@@ -163,7 +167,7 @@ assign id_val2 = ((cdb_alu_valid && cdb_alu_src == id_src2)? cdb_alu_val
 
 assign slb_st_rdy = inque[slb_st_idx] && !busy[slb_st_idx] && rob_head == slb_st_idx;
 
-integer i, cnt = 0;
+integer i, cnt = 0, cyc = 0;
 
 `ifdef DEBUG
 assign head_rdy = inque[rob_head] && !busy[rob_head];

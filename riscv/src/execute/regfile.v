@@ -1,7 +1,11 @@
 `ifndef REGFILE_V_ 
 `define REGFILE_V_ 
 
-`include "/home/Modem514/projectAris/riscv/src/utils.v"
+`ifdef ONLINE_JUDGE
+    `include "utils.v"
+`else 
+    `include "/home/Modem514/projectAris/riscv/src/utils.v"
+`endif
 
 `define REG_BIT `REG_IDX_LN
 `define REG_SIZE (1 << `REG_BIT)

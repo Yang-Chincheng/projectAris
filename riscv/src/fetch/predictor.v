@@ -1,7 +1,11 @@
 `ifndef PREDICTOR_V_ 
 `define PREDICTOR_V_
 
-`include "/home/Modem514/projectAris/riscv/src/utils.v"
+`ifdef ONLINE_JUDGE
+    `include "utils.v"
+`else 
+    `include "/home/Modem514/projectAris/riscv/src/utils.v"
+`endif
 
 `define ADDR_HASH 9:2
 `define OPC_RG 6:0

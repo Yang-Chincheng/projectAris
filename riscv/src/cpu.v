@@ -1,10 +1,11 @@
 // RISCV32I CPU top module
 // port modification allowed for debugging purposes
 
-`define DEBUG
+// `define DEBUG
+// `define ONLINE_JUDGE
 `define LOWER_BOUND 000
 `define UPPER_BOUND 1000000
-`define PRINT_BASE 1000
+`define PRINT_BASE 10000
 
 `include "utils.v"
 `include "fetch/fetcher.v"
