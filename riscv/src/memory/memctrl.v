@@ -80,6 +80,7 @@ always @(posedge clk) begin
     if (rst) begin
         mc_stat <= IDLE;
         ram_rw_sel <= READ;
+        ram_addr <= `ZERO_ADDR;
         ram_rw_start <= `FALSE;
         for (i = 0; i < 16; ++i) begin
             rd_buff[i] <= `ZERO_BYTE;
@@ -98,8 +99,11 @@ always @(posedge clk) begin
                 ram_rw_sel <= WRITE;
                 ram_addr <= rob_st_addr;
                 ram_wr_byte <= st_bytes[0];
+                // if (rob_st_addr[17:16] == 2'b11) begin
+                //     $display("print %h", st_bytes[0]);
+                // end
             end
-            else if (slb_ld_valid && !slb_ld_done) begin
+            else if (slb_ld_valid && !slb_ld_done && !mc_rb) begin
                 mc_stat <= LOADING;
                 ram_rw_start <= `TRUE;
                 counter <= 15;
@@ -123,6 +127,7 @@ always @(posedge clk) begin
             if (counter == rob_st_len) begin
                 mc_stat <= IDLE;
                 ram_rw_sel <= READ;
+                ram_addr <= `ZERO_ADDR;
                 counter <= 0;
                 rob_st_done <= `TRUE;
             end
@@ -139,6 +144,7 @@ always @(posedge clk) begin
                 mc_stat <= IDLE;
                 counter <= 0;
                 ram_rw_sel <= READ;
+                ram_addr <= `ZERO_ADDR;
             end
             else begin
                 ram_rw_start <= `FALSE;
@@ -146,6 +152,7 @@ always @(posedge clk) begin
                 if (counter == slb_ld_len) begin
                     mc_stat <= IDLE;
                     ram_rw_sel <= READ;
+                    ram_addr <= `ZERO_ADDR;
                     counter <= 0;
                     slb_ld_done <= `TRUE;
                     cdb_ld_ena <= `TRUE;
@@ -169,6 +176,7 @@ always @(posedge clk) begin
             if (!ram_rw_start && counter == 15) begin
                 mc_stat <= IDLE;
                 ram_rw_sel <= READ;
+                ram_addr <= `ZERO_ADDR;
                 counter <= 0;
                 icache_fc_done <= `TRUE;
                 icache_fc_line <= {

@@ -114,7 +114,6 @@ wire [`WORD_TP] upd_val1 = ((cdb_alu_valid && cdb_alu_src == id_src1)? cdb_alu_v
 wire [`WORD_TP] upd_val2 = ((cdb_alu_valid && cdb_alu_src == id_src2)? cdb_alu_val
     : ((cdb_ld_valid && cdb_ld_src == id_src2)? cdb_ld_val: id_val2));
 
-
 wire ld_rdy = isld[slb_head] && src1[slb_head] == `ZERO_ROB_IDX;
 wire st_rdy = !isld[slb_head] && src1[slb_head] == `ZERO_ROB_IDX && src2[slb_head] == `ZERO_ROB_IDX;
 

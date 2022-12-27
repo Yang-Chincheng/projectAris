@@ -179,6 +179,11 @@ always @(posedge clk) begin
     rob_push_flag <= `FALSE;
     rob_pop_flag <= `FALSE;
 
+    if (rob_stat == STORING && mc_st_done) begin
+        rob_stat <= IDLE;
+        mc_st_ena <= `FALSE;
+    end
+
     if (rst) begin
         rob_stat <= IDLE;
         mc_st_ena <= `FALSE;
@@ -337,10 +342,6 @@ always @(posedge clk) begin
             endcase
         end
         // update
-        if (rob_stat == STORING && mc_st_done) begin
-            rob_stat <= IDLE;
-            mc_st_ena <= `FALSE;
-        end
         if (cdb_alu_valid) begin
             data[cdb_alu_src] <= cdb_alu_val;
             rl_tk[cdb_alu_src] <= cdb_alu_tk;

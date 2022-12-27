@@ -64,10 +64,10 @@ assign id_val2 = ((rob_wr_ena && rob_wr_idx == src[id_rs2] && rob_wr_rd == id_rs
 integer i;
 
 `ifdef DEBUG
-assign dbg_src = src[10];
-assign dbg_src2 = src[12];
-assign dbg_val = val[10];
-assign dbg_val2 = val[12];
+assign dbg_src = src[1];
+assign dbg_src2 = src[15];
+assign dbg_val = val[1];
+assign dbg_val2 = val[15];
 `endif
 
 // wire [`ROB_IDX_TP] dbg_reg_src[1:0];
