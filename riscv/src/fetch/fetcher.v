@@ -61,7 +61,9 @@ always @(posedge clk) begin
         pc <= `ZERO_ADDR;
     end
     else if (!if_en || if_st) begin
-        // STALL
+        if (if_rb) begin
+            pc <= rob_rb_pc;
+        end
     end
     else if (if_rb) begin
         pc <= rob_rb_pc;

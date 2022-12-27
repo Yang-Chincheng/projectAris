@@ -263,13 +263,11 @@ always @(posedge clk) begin
 `ifdef DEBUG
     cnt++;
     if (cnt >= `LOWER_BOUND && cnt < `UPPER_BOUND) begin
-        $display("%d. inst = %h @%h", cnt, inst[rob_head], cur_pc[rob_head]);
+        if (cnt % `PRINT_BASE == 0) begin
+            $display("%d. inst = %h @%h", cnt, inst[rob_head], cur_pc[rob_head]);
+        end
         commit_cnt <= cnt;
         commit_inst <= inst[rob_head];
-        if (rl_tk[rob_head] != pb_tk[rob_head]) begin
-            // $display("idx = %h", rob_head);
-            // $display("rollback, pb = %b, rl = %b, %h", pb_tk[rob_head], rl_tk[rob_head], mis_pc[rob_head]);
-        end
     end
 `endif
                 end
@@ -291,7 +289,9 @@ always @(posedge clk) begin
 `ifdef DEBUG
     cnt++;
     if (cnt >= `LOWER_BOUND && cnt < `UPPER_BOUND) begin 
-        $display("%d. inst = %h @%h", cnt, inst[rob_head], cur_pc[rob_head]);
+        if (cnt % `PRINT_BASE == 0) begin
+            $display("%d. inst = %h @%h", cnt, inst[rob_head], cur_pc[rob_head]);
+        end
         commit_cnt <= cnt;
         commit_inst <= inst[rob_head];
     end
@@ -313,7 +313,9 @@ always @(posedge clk) begin
 `ifdef DEBUG
     cnt++;
     if (cnt >= `LOWER_BOUND && cnt < `UPPER_BOUND) begin 
-        $display("%d. inst = %h @%h", cnt, inst[rob_head], cur_pc[rob_head]);
+        if (cnt % `PRINT_BASE == 0) begin
+            $display("%d. inst = %h @%h", cnt, inst[rob_head], cur_pc[rob_head]);
+        end
         commit_cnt <= cnt;
         commit_inst <= inst[rob_head];
     end
@@ -332,8 +334,9 @@ always @(posedge clk) begin
 `ifdef DEBUG
     cnt++;
     if (cnt >= `LOWER_BOUND && cnt < `UPPER_BOUND) begin
-        // $display("reg = %h, val = %h", dest[rob_head], data[rob_head]);
-        $display("%d. inst = %h @%h", cnt, inst[rob_head], cur_pc[rob_head]);
+        if (cnt % `PRINT_BASE == 0) begin
+            $display("%d. inst = %h @%h", cnt, inst[rob_head], cur_pc[rob_head]);
+        end
         commit_cnt <= cnt;
         commit_inst <= inst[rob_head];
     end
