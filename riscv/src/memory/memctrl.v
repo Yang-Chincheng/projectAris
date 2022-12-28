@@ -39,6 +39,7 @@ module memctrl(
     input wire slb_ld_valid,
     input wire [`ADDR_TP] slb_ld_addr,
     input wire [3:0] slb_ld_len,
+    input wire slb_ld_sext,
     input wire [`ROB_IDX_TP] slb_ld_src,
     output reg slb_ld_done,
     output wire [`WORD_TP] slb_ld_data,
@@ -162,8 +163,8 @@ always @(posedge clk) begin
                     cdb_ld_ena <= `TRUE;
                     cdb_ld_src <= slb_ld_src;
                     cdb_ld_val <= 
-                        (slb_ld_len == 0? {{24{ram_rd_byte[7]}}, ram_rd_byte} :
-                        (slb_ld_len == 1? {{16{ram_rd_byte[7]}}, ram_rd_byte, rd_buff[0]} :
+                        (slb_ld_len == 0? {{24{(slb_ld_sext? ram_rd_byte[7]: 1'b0)}}, ram_rd_byte} :
+                        (slb_ld_len == 1? {{16{(slb_ld_sext? ram_rd_byte[7]: 1'b0)}}, ram_rd_byte, rd_buff[0]} :
                         {ram_rd_byte, rd_buff[2], rd_buff[1], rd_buff[0]}));
                 end
                 else begin

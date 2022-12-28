@@ -53,6 +53,7 @@ module SLB #(
     output reg mc_ld_ena,
     output reg [`ADDR_TP] mc_ld_addr,
     output reg [3:0] mc_ld_len,
+    output reg mc_ld_sext,
     output reg [`ROB_IDX_TP] mc_ld_src,
     input wire mc_ld_done,
     input wire [`WORD_TP] mc_ld_data,
@@ -86,7 +87,7 @@ wire [SLB_BIT-1:0] slb_siz = lag_slb_siz + (slb_push_flag? 1: 0) + (slb_pop_flag
 assign slb_full  = (slb_siz >= SLB_SIZE - 3);
 assign slb_empty = (slb_siz == 0);
 
-assign rob_st_idx = dest[slb_head];
+assign rob_st_idx = isld[slb_head]? `ZERO_ROB_IDX: dest[slb_head];
 
 reg [SLB_BIT-1:0] slb_head; // queue element index [slb_head, slb_tail) 
 reg [SLB_BIT-1:0] slb_tail;
@@ -178,7 +179,28 @@ always @(posedge clk) begin
                 mc_ld_ena <= `TRUE;
                 mc_ld_src <= dest[slb_head];
                 mc_ld_addr <= val1[slb_head] + imm[slb_head];
-                mc_ld_len <= (opt[slb_head] == `OPT_LB? 0: (opt[slb_head] == `OPT_LH? 1: 3));
+                case (opt[slb_head])
+                    `OPT_LB: begin
+                        mc_ld_len <= 0;
+                        mc_ld_sext <= `TRUE;
+                    end
+                    `OPT_LBU: begin
+                        mc_ld_len <= 0;
+                        mc_ld_sext <= `FALSE;
+                    end
+                    `OPT_LH: begin
+                        mc_ld_len <= 1;
+                        mc_ld_sext <= `TRUE;
+                    end
+                    `OPT_LHU: begin
+                        mc_ld_len <= 1;
+                        mc_ld_sext <= `FALSE;
+                    end
+                    default: begin
+                        mc_ld_len <= 3;
+                        mc_ld_sext <= `FALSE;
+                    end
+                endcase
                 slb_pop_flag <= `TRUE;
                 slb_head <= slb_head + 1;
                 busy[slb_head] <= `FALSE;

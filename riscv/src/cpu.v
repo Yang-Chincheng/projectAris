@@ -1,10 +1,10 @@
 // RISCV32I CPU top module
 // port modification allowed for debugging purposes
 
-// `define DEBUG
+`define DEBUG
 // `define ONLINE_JUDGE
-`define LOWER_BOUND 000
-`define UPPER_BOUND 1000000
+`define LOWER_BOUND 5000
+`define UPPER_BOUND 6000
 `define PRINT_BASE 10000
 
 `include "utils.v"
@@ -48,6 +48,12 @@ module cpu (
 // - 0x30000 write: write a byte to output (write 0x00 is ignored)
 // - 0x30004 read: read clocks passed since cpu starts (in dword, 4 bytes)
 // - 0x30004 write: indicates program stop (will output '\0' through uart tx)
+
+// always @(posedge clk_in) begin
+//     if (io_buffer_full) begin
+//         $display("nope");
+//     end
+// end
 
 wire cpu_rb_signal;
 wire cdb_alu_tk;
@@ -361,6 +367,7 @@ wire rob_to_slb_st_rdy;
 wire slb_to_mc_ld_ena;
 wire [`ADDR_TP] slb_to_mc_ld_addr;
 wire [3:0] slb_to_mc_ld_len;
+wire slb_to_mc_ld_sext;
 wire [`ROB_IDX_TP] slb_to_mc_ld_src;
 wire mc_to_slb_ld_done;
 wire [`WORD_TP] mc_to_slb_ld_data;
@@ -393,6 +400,7 @@ SLB cpu_slb(
     .mc_ld_ena(slb_to_mc_ld_ena),
     .mc_ld_addr(slb_to_mc_ld_addr),
     .mc_ld_len(slb_to_mc_ld_len),
+    .mc_ld_sext(slb_to_mc_ld_sext),
     .mc_ld_src(slb_to_mc_ld_src),
     .mc_ld_done(mc_to_slb_ld_done),
     .mc_ld_data(mc_to_slb_ld_data),
@@ -517,6 +525,7 @@ ROB cpu_rob(
     .head_rdy(),
     .commit_cnt(),
     .commit_inst(),
+    .commit_print_cnt(),
 `endif
     .id_valid(id_to_rob_ena),
     .id_opt(id_to_rob_opt),
@@ -613,6 +622,7 @@ memctrl cpu_memctrl(
     .slb_ld_valid(slb_to_mc_ld_ena),
     .slb_ld_addr(slb_to_mc_ld_addr),
     .slb_ld_len(slb_to_mc_ld_len),
+    .slb_ld_sext(slb_to_mc_ld_sext),
     .slb_ld_src(slb_to_mc_ld_src),
     .slb_ld_done(mc_to_slb_ld_done),
     .slb_ld_data(mc_to_slb_ld_data),
