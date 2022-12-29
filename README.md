@@ -12,9 +12,9 @@
 
 - [x] **week 12** 各个 CPU 模块文件基本完成，完成 `cpu.v` 连线（see [here](https://github.com/Yang-Chincheng/projectAris/tree/fcf80fa9b4958a8108bab669fdbcd8a8f2720a13/riscv/src)）
 
-- [ ] **week 14** Simulation 通过 `gcd`
+- [x] **week 14** Simulation 通过 `gcd`
 
-- [ ] **week 16** Simulation 通过除 `tak`，`heart`，`pi` 之外的所有样例
+- [x] **week 16** Simulation 通过除 `tak`，`heart`，`pi` 之外的所有样例
 
 - [ ] **week 18** FPGA 通过所有样例
 
