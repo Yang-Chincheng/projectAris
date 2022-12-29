@@ -10,12 +10,6 @@
 `define ROB_BIT `ROB_IDX_LN
 `define ROB_SIZE (1 << `ROB_BIT)
 
-/**
- * TODO:
- * (1) JALR: stall before result is calculated (which part of function is stalled?)
- * (2) load&store d-cache management
- */
-
 module ROB #(
     parameter ROB_BIT = `ROB_BIT,
     parameter ROB_SIZE = `ROB_SIZE

@@ -2,9 +2,9 @@
 // port modification allowed for debugging purposes
 
 // `define DEBUG
-`define ONLINE_JUDGE
-`define LOWER_BOUND 1500 // 5000
-`define UPPER_BOUND 2000 // 6000
+// `define ONLINE_JUDGE
+`define LOWER_BOUND 1500
+`define UPPER_BOUND 2000
 `define PRINT_BASE 10000
 
 `include "utils.v"

@@ -7,14 +7,6 @@
     `include "/home/Modem514/projectAris/riscv/src/utils.v"
 `endif
 
-/**
- * TODO:
- * (1) full&empty signal: current/next cycle
- * (2) cache_ena signal: interaction with dcache (& eliminate cycle gap bewteen reads?)
- * (3) use parameter to represent current status: IDLE, LOADING, ...
- * (4) load&store d-cache management
- */
-
 `define SLB_BIT 4
 `define SLB_SIZE (1 << `SLB_BIT)
 

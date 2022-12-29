@@ -10,12 +10,6 @@
 `define REG_BIT `REG_IDX_LN
 `define REG_SIZE (1 << `REG_BIT)
 
-/**
- * TODO:
- * (1) protect #0 register
- *
- */
-
 module regfile #(
     parameter REG_SIZE = `REG_SIZE,
     parameter REG_BIT = `REG_BIT
@@ -74,12 +68,6 @@ assign dbg_val = val[9];
 assign dbg_val2 = val[15];
 `endif
 
-// wire [`ROB_IDX_TP] dbg_reg_src[1:0];
-// assign {dbg_reg_src[1], dbg_reg_src[0]} = {src[10], src[0]};
-// wire [`WORD_TP] dbg_reg_val[1:0];
-// assign {dbg_reg_val[1], dbg_reg_val[0]} = {val[10], val[0]};
-
-
 always @(posedge clk) begin
     if (rst) begin
         for (i = 0; i < REG_SIZE; i++) begin
@@ -104,9 +92,6 @@ always @(posedge clk) begin
                 src[rob_wr_rd] <= `ZERO_ROB_IDX;
             end
             val[rob_wr_rd] <= rob_wr_val;
-`ifdef DEBUG
-    // $display("[] reg = %h, val = %h", rob_wr_rd, rob_wr_val);
-`endif
         end
         if (id_rn_ena) begin
             src[id_rn_rd] <= id_rn_idx;

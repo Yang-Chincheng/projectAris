@@ -32,8 +32,6 @@ module ALU (
     output reg cdb_alu_tk
 );
 
-integer cnt = 0;
-
 always @(*) begin
     if (rst) begin
         // RESET
@@ -85,15 +83,6 @@ always @(*) begin
             `OPT_BGEU:  cdb_alu_tk  = (rs_val1 >= rs_val2);
             default: begin end
         endcase
-`ifdef DEBUG
-    cnt++;
-    if (rs_inst == 32'h00161613) begin
-        // $display("alu inst = %h, opt = %h", rs_inst, rs_opt);
-        // $display("alu val1 = %h, val2 = %h, imm = %h", rs_val1, rs_val2, rs_imm);
-    end
-`endif
-        // $display("val1 = %h, val2 = %h, imm = %h", rs_val1, rs_val2, rs_imm);
-        // $display("opt = %h, val = %h, src = %h", rs_opt, cdb_alu_val, cdb_alu_src);
     end
     else begin
         cdb_alu_valid = `FALSE;

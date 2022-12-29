@@ -21,7 +21,6 @@ module dispatcher(
     input wire if_valid,
     input wire [`WORD_TP] if_inst, // inst from ifu
     input wire [`ADDR_TP] if_cur_pc, // pc from ifu
-    // input wire [`ADDR_TP] if_nex_pc, // rollback target from ifu
     input wire [`ADDR_TP] if_mis_pc, // rollback target from ifu
     input wire if_pb_tk_stat, // predict taken status from ifu
 

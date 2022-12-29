@@ -120,58 +120,6 @@ wire [RS_BIT-1:0] exec_idx =
     (busy[15] && src1[15] == 0 && src2[15] == 0? 15: 4'bxxxx
     ))))))))))))))));
 
-// wire idle_flag3 = busy[ 7] & busy[ 6] & busy[ 5] & busy[4] & busy[3] & busy[2] & busy[1] & busy[0];
-// wire idle_flag2 = busy[11] & busy[10] & busy[ 9] & busy[8] & busy[3] & busy[2] & busy[1] & busy[0];
-// wire idle_flag1 = busy[13] & busy[12] & busy[ 9] & busy[8] & busy[5] & busy[4] & busy[1] & busy[0];
-// wire idle_flag0 = busy[14] & busy[12] & busy[10] & busy[8] & busy[6] & busy[4] & busy[2] & busy[0];
-// wire [RS_BIT-1:0] idle_idx = 
-//     ({3'b0, idle_flag3} << 3) | 
-//     ({3'b0, idle_flag2} << 2) | 
-//     ({3'b0, idle_flag1} << 1) | 
-//     ({3'b0, idle_flag0});
-
-// wire exe_flag3 = 
-//     (busy[15] && src1[15] == `ZERO_ROB_IDX && src2[15] == `ZERO_ROB_IDX) |
-//     (busy[14] && src1[14] == `ZERO_ROB_IDX && src2[14] == `ZERO_ROB_IDX) | 
-//     (busy[13] && src1[13] == `ZERO_ROB_IDX && src2[13] == `ZERO_ROB_IDX) | 
-//     (busy[12] && src1[12] == `ZERO_ROB_IDX && src2[12] == `ZERO_ROB_IDX) | 
-//     (busy[11] && src1[11] == `ZERO_ROB_IDX && src2[11] == `ZERO_ROB_IDX) | 
-//     (busy[10] && src1[10] == `ZERO_ROB_IDX && src2[10] == `ZERO_ROB_IDX) | 
-//     (busy[ 9] && src1[ 9] == `ZERO_ROB_IDX && src2[ 9] == `ZERO_ROB_IDX) | 
-//     (busy[ 8] && src1[ 8] == `ZERO_ROB_IDX && src2[ 8] == `ZERO_ROB_IDX);
-// wire exe_flag2 = 
-//     (busy[15] && src1[15] == `ZERO_ROB_IDX && src2[15] == `ZERO_ROB_IDX) |
-//     (busy[14] && src1[14] == `ZERO_ROB_IDX && src2[14] == `ZERO_ROB_IDX) | 
-//     (busy[13] && src1[13] == `ZERO_ROB_IDX && src2[13] == `ZERO_ROB_IDX) | 
-//     (busy[12] && src1[12] == `ZERO_ROB_IDX && src2[12] == `ZERO_ROB_IDX) | 
-//     (busy[ 7] && src1[ 7] == `ZERO_ROB_IDX && src2[ 7] == `ZERO_ROB_IDX) | 
-//     (busy[ 6] && src1[ 6] == `ZERO_ROB_IDX && src2[ 6] == `ZERO_ROB_IDX) | 
-//     (busy[ 5] && src1[ 5] == `ZERO_ROB_IDX && src2[ 5] == `ZERO_ROB_IDX) | 
-//     (busy[ 4] && src1[ 4] == `ZERO_ROB_IDX && src2[ 4] == `ZERO_ROB_IDX);
-// wire exe_flag1 = 
-//     (busy[15] && src1[15] == `ZERO_ROB_IDX && src2[15] == `ZERO_ROB_IDX) | 
-//     (busy[14] && src1[14] == `ZERO_ROB_IDX && src2[14] == `ZERO_ROB_IDX) | 
-//     (busy[11] && src1[11] == `ZERO_ROB_IDX && src2[11] == `ZERO_ROB_IDX) | 
-//     (busy[10] && src1[10] == `ZERO_ROB_IDX && src2[10] == `ZERO_ROB_IDX) | 
-//     (busy[ 7] && src1[ 7] == `ZERO_ROB_IDX && src2[ 7] == `ZERO_ROB_IDX) | 
-//     (busy[ 6] && src1[ 6] == `ZERO_ROB_IDX && src2[ 6] == `ZERO_ROB_IDX) | 
-//     (busy[ 3] && src1[ 3] == `ZERO_ROB_IDX && src2[ 3] == `ZERO_ROB_IDX) | 
-//     (busy[ 2] && src1[ 2] == `ZERO_ROB_IDX && src2[ 2] == `ZERO_ROB_IDX);
-// wire exe_flag0 = 
-//     (busy[15] && src1[15] == `ZERO_ROB_IDX && src2[15] == `ZERO_ROB_IDX) |
-//     (busy[13] && src1[13] == `ZERO_ROB_IDX && src2[13] == `ZERO_ROB_IDX) | 
-//     (busy[11] && src1[11] == `ZERO_ROB_IDX && src2[11] == `ZERO_ROB_IDX) | 
-//     (busy[ 9] && src1[ 9] == `ZERO_ROB_IDX && src2[ 9] == `ZERO_ROB_IDX) | 
-//     (busy[ 7] && src1[ 7] == `ZERO_ROB_IDX && src2[ 7] == `ZERO_ROB_IDX) | 
-//     (busy[ 5] && src1[ 5] == `ZERO_ROB_IDX && src2[ 5] == `ZERO_ROB_IDX) | 
-//     (busy[ 3] && src1[ 3] == `ZERO_ROB_IDX && src2[ 3] == `ZERO_ROB_IDX) | 
-//     (busy[ 1] && src1[ 1] == `ZERO_ROB_IDX && src2[ 1] == `ZERO_ROB_IDX);
-// wire [RS_BIT-1:0] exec_idx =
-//     ({3'b0, exe_flag3} << 3) | 
-//     ({3'b0, exe_flag2} << 2) | 
-//     ({3'b0, exe_flag1} << 1) | 
-//     ({3'b0, exe_flag0});
-
 wire [`ROB_IDX_TP] upd_src1 = (cdb_alu_valid && cdb_alu_src == id_src1)? `ZERO_ROB_IDX
     : ((cdb_ld_valid && cdb_ld_src == id_src1)? `ZERO_ROB_IDX: id_src1);
 wire [`ROB_IDX_TP] upd_src2 = (cdb_alu_valid && cdb_alu_src == id_src2)? `ZERO_ROB_IDX
@@ -243,20 +191,10 @@ always @(posedge clk) begin
         if (cdb_alu_valid) begin
             for (i = 0; i < RS_SIZE; i++) begin
                 if (busy[i] && src1[i] == cdb_alu_src) begin
-`ifdef DEBUG
-// if (1) begin
-    // $display("src1 upd %h, %h", cdb_alu_src, cdb_alu_val);
-// end
-`endif
                     src1[i] <= `ZERO_ROB_IDX;
                     val1[i] <= cdb_alu_val;
                 end
                 if (busy[i] && src2[i] == cdb_alu_src) begin
-`ifdef DEBUG
-// if (cdb_alu_src == 6) begin
-    // $display("src2 upd %h, %h", cdb_alu_src, cdb_alu_val);
-// end
-`endif
                     src2[i] <= `ZERO_ROB_IDX;
                     val2[i] <= cdb_alu_val;
                 end
@@ -272,9 +210,6 @@ always @(posedge clk) begin
                     src2[i] <= `ZERO_ROB_IDX;
                     val2[i] <= cdb_ld_val;
                 end
-`ifdef DEBUG
-// $display("src = %h, val = %h", cdb_alu_src, cdb_alu_val);
-`endif 
             end
         end
     end
