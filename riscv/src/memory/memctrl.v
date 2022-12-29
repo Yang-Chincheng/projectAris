@@ -17,6 +17,7 @@ module memctrl(
     input wire clk,
     input wire rst,
     input wire rdy,
+    input wire io_full,
 
     input wire mc_en,
     input wire mc_st,
@@ -124,6 +125,9 @@ always @(posedge clk) begin
         end
         // storing data from rob
         else if (mc_stat == STORING) begin
+`ifndef SIM
+    if (!io_full) begin
+`endif
             ram_rw_start <= `FALSE;
             if (counter == slb_st_len) begin
                 mc_stat <= IDLE;
@@ -138,9 +142,15 @@ always @(posedge clk) begin
                 ram_addr <= ram_addr + 1;
                 ram_wr_byte <= st_bytes[counter + 1];
             end
+`ifndef SIM
+    end
+`endif
         end
         // loading data to cdb
         else if (mc_stat == LOADING) begin
+`ifndef SIM
+    if (!io_full) begin
+`endif
             if (mc_rb) begin
                 mc_stat <= IDLE;
                 counter <= 0;
@@ -169,9 +179,15 @@ always @(posedge clk) begin
                     ram_addr <= ram_addr + 1;
                 end
             end
+`ifndef SIM
+    end
+`endif
         end
         // fetching data to icache
         else if (mc_stat == FETCHING) begin
+`ifndef SIM
+    if (!io_full) begin
+`endif
             ram_rw_start <= `FALSE;
             rd_buff[counter] <= ram_rd_byte;
             if (!ram_rw_start && counter == 15) begin
@@ -193,6 +209,9 @@ always @(posedge clk) begin
                 ram_addr <= ram_addr + 1;
             end
         end
+`ifndef SIM
+    end
+`endif
     end
 end
     

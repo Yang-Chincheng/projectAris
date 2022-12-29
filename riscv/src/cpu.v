@@ -3,6 +3,7 @@
 
 // `define DEBUG
 // `define ONLINE_JUDGE
+// `define SIM
 `define LOWER_BOUND 1500
 `define UPPER_BOUND 2000
 `define PRINT_BASE 10000
@@ -590,6 +591,7 @@ memctrl cpu_memctrl(
     .clk(clk_in),
     .rst(rst_in),
     .rdy(rdy_in),
+    .io_full(io_buffer_full),
 
     .mc_en(`TRUE),
     .mc_st(`FALSE),
