@@ -7,7 +7,7 @@ sim_testcase = $(prefix)/testcase/sim
 fpga_testcase = $(prefix)/testcase/fpga
 
 sim = $(prefix)/sim
-riscv_toolchain = /opt/riscv
+riscv_toolchain = /home/Modem514/cpu-tool-chain/
 riscv_bin = $(riscv_toolchain)/bin
 sys = $(prefix)/sys
 
@@ -17,7 +17,7 @@ _no_testcase_name_check:
 
 # All build result are put at testspace
 build_sim:
-	@cd $(src) && iverilog -o $(testspace)/test $(sim)/testbench.v $(src)/common/block_ram/*.v $(src)/common/fifo/*.v $(src)/common/uart/*.v $(src)/*.vh $(src)/*.v
+	@cd $(src) && iverilog -o $(testspace)/test $(sim)/testbench.v $(src)/common/block_ram/*.v $(src)/common/fifo/*.v $(src)/common/uart/*.v $(src)/*.v
 
 build_sim_test: _no_testcase_name_check
 	@$(riscv_bin)/riscv32-unknown-elf-as -o $(sys)/rom.o -march=rv32i $(sys)/rom.s
@@ -36,3 +36,4 @@ clear:
 test_sim: build_sim build_sim_test run_sim
 
 .PHONY: _no_testcase_name_check build_sim build_sim_test run_sim clear test_sim
+
