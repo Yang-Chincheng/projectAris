@@ -3,8 +3,8 @@
 
 `define DEBUG
 // `define ONLINE_JUDGE
-`define LOWER_BOUND 5000
-`define UPPER_BOUND 6000
+`define LOWER_BOUND 0000 // 5000
+`define UPPER_BOUND 1000 // 6000
 `define PRINT_BASE 10000
 
 `include "utils.v"
@@ -365,6 +365,7 @@ wire [`ROB_IDX_TP] slb_to_rob_st_idx;
 wire rob_to_slb_st_rdy;
 
 wire slb_to_mc_ld_ena;
+wire [1:0] slb_to_mc_ld_cnt;
 wire [`ADDR_TP] slb_to_mc_ld_addr;
 wire [3:0] slb_to_mc_ld_len;
 wire slb_to_mc_ld_sext;
@@ -397,6 +398,7 @@ SLB cpu_slb(
     .id_rob_idx(id_to_slb_rob_idx),
 
     // memctrl
+    .mc_ld_cnt(slb_to_mc_ld_cnt),
     .mc_ld_ena(slb_to_mc_ld_ena),
     .mc_ld_addr(slb_to_mc_ld_addr),
     .mc_ld_len(slb_to_mc_ld_len),
@@ -492,6 +494,7 @@ ALU cpu_alu(
 );
 
 wire rob_to_mc_st_ena;
+wire [1:0] rob_to_mc_st_cnt;
 wire [`ADDR_TP] rob_to_mc_st_addr;
 wire [`WORD_TP] rob_to_mc_st_data;
 wire [3:0] rob_to_mc_st_len;
@@ -560,6 +563,7 @@ ROB cpu_rob(
     .cdb_ld_val(cdb_ld_val),
 
     // memctrl
+    .mc_st_cnt(rob_to_mc_st_cnt),
     .mc_st_ena(rob_to_mc_st_ena),
     .mc_st_addr(rob_to_mc_st_addr),
     .mc_st_data(rob_to_mc_st_data),
@@ -612,6 +616,7 @@ memctrl cpu_memctrl(
     .icache_fc_line(mc_to_icache_fc_line),
 
     // rob
+    .rob_st_cnt(rob_to_mc_st_cnt),
     .rob_st_valid(rob_to_mc_st_ena),
     .rob_st_addr(rob_to_mc_st_addr),
     .rob_st_data(rob_to_mc_st_data),
@@ -619,6 +624,7 @@ memctrl cpu_memctrl(
     .rob_st_done(mc_to_rob_st_done),
 
     // slb
+    .slb_ld_cnt(slb_to_mc_ld_cnt),
     .slb_ld_valid(slb_to_mc_ld_ena),
     .slb_ld_addr(slb_to_mc_ld_addr),
     .slb_ld_len(slb_to_mc_ld_len),

@@ -28,14 +28,15 @@ module memctrl(
     output reg icache_fc_done,
     output reg [`LINE_TP] icache_fc_line,
 
-    // rob
-    input wire rob_st_valid, 
-    input wire [`ADDR_TP] rob_st_addr,
-    input wire [`WORD_TP] rob_st_data,
-    input wire [3:0] rob_st_len,
-    output reg rob_st_done,
-
     // slb
+    input wire [1:0] slb_st_cnt,
+    input wire slb_st_valid, 
+    input wire [`ADDR_TP] slb_st_addr,
+    input wire [`WORD_TP] slb_st_data,
+    input wire [3:0] slb_st_len,
+    output reg slb_st_done,
+
+    input wire [1:0] slb_ld_cnt,
     input wire slb_ld_valid,
     input wire [`ADDR_TP] slb_ld_addr,
     input wire [3:0] slb_ld_len,
@@ -57,7 +58,7 @@ module memctrl(
 );
 
 wire [`BYTE_TP] st_bytes[3:0];
-assign {st_bytes[3], st_bytes[2], st_bytes[1], st_bytes[0]} = rob_st_data;
+assign {st_bytes[3], st_bytes[2], st_bytes[1], st_bytes[0]} = slb_st_data;
 
 parameter READ = 0, WRITE = 1;
 parameter IDLE = 0, FETCHING = 1, LOADING = 2, STORING = 3;
@@ -78,7 +79,7 @@ assign slb_ld_data =
 
 always @(posedge clk) begin
     cdb_ld_ena <= `FALSE;
-    rob_st_done <= `FALSE;
+    slb_st_done <= `FALSE;
     slb_ld_done <= `FALSE;
     icache_fc_done <= `FALSE;
 
@@ -97,26 +98,25 @@ always @(posedge clk) begin
     else begin
         // launch a r/w procedure (st > ld > fetch)
         if (mc_stat == IDLE) begin
-            if (rob_st_valid && !rob_st_done) begin
+            // $display("+ %d %d %d", slb_st_cnt, slb_ld_cnt, icache_fc_valid);
+            // $display("- %d %d %d", slb_st_cnt-slb_st_done, slb_ld_cnt-slb_ld_done, icache_fc_valid-icache_fc_done);
+            if (slb_st_valid && !slb_st_done) begin
                 mc_stat <= STORING;
                 ram_rw_start <= `TRUE;
                 counter <= 0;
                 ram_rw_sel <= WRITE;
-                ram_addr <= rob_st_addr;
+                ram_addr <= slb_st_addr;
                 ram_wr_byte <= st_bytes[0];
-                // if (rob_st_addr[17:16] == 2'b11) begin
-                //     $display("print %h", st_bytes[0]);
-                // end
             end
             else if (slb_ld_valid && !slb_ld_done && !mc_rb) begin
-                mc_stat <= LOADING;
-                ram_rw_start <= `TRUE;
-                counter <= 15;
-                ram_rw_sel <= READ;
-                ram_addr <= slb_ld_addr;
-                for (i = 0; i < 4; i++) begin
-                    rd_buff[i] <= `ZERO_BYTE;
-                end
+                    mc_stat <= LOADING;
+                    ram_rw_start <= `TRUE;
+                    counter <= 15;
+                    ram_rw_sel <= READ;
+                    ram_addr <= slb_ld_addr;
+                    for (i = 0; i < 4; i++) begin
+                        rd_buff[i] <= `ZERO_BYTE;
+                    end
             end
             else if (icache_fc_valid && !icache_fc_done) begin
                 mc_stat <= FETCHING;
@@ -129,12 +129,12 @@ always @(posedge clk) begin
         // storing data from rob
         else if (mc_stat == STORING) begin
             ram_rw_start <= `FALSE;
-            if (counter == rob_st_len) begin
+            if (counter == slb_st_len) begin
                 mc_stat <= IDLE;
                 ram_rw_sel <= READ;
                 ram_addr <= `ZERO_ADDR;
                 counter <= 0;
-                rob_st_done <= `TRUE;
+                slb_st_done <= `TRUE;
             end
             else begin
                 ram_rw_sel <= WRITE;

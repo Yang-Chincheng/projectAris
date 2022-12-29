@@ -50,6 +50,7 @@ module SLB #(
 `endif
 
     // memctrl
+    output reg [1:0] mc_ld_cnt,
     output reg mc_ld_ena,
     output reg [`ADDR_TP] mc_ld_addr,
     output reg [3:0] mc_ld_len,
@@ -57,6 +58,7 @@ module SLB #(
     output reg [`ROB_IDX_TP] mc_ld_src,
     input wire mc_ld_done,
     input wire [`WORD_TP] mc_ld_data,
+    
 
     // cdb
     input wire cdb_alu_valid,
@@ -72,11 +74,12 @@ module SLB #(
     output reg [`WORD_TP] rob_val,
     output reg [`ADDR_TP] rob_addr,
     output wire [`ROB_IDX_TP] rob_st_idx,
-    input wire rob_st_rdy
+    output wire rob_st_rdy,
+    input wire rob_commit_rdy
 );
 
-parameter IDLE = 0, LOADING = 1;
-reg slb_stat;
+parameter IDLE = 0, LOADING = 1, STORING = 2;
+reg [1:0] slb_stat;
 reg [`ROB_IDX_TP] cache_rd_idx;
 
 reg [SLB_BIT-1:0] lag_slb_siz;
@@ -130,6 +133,7 @@ always @(posedge clk) begin
 
     if (rst || slb_rb) begin
         mc_ld_ena <= `FALSE;
+        mc_ld_cnt <= 0;
         lag_slb_siz <= 0;
         slb_push_flag <= `FALSE;
         slb_pop_flag <= `FALSE;
@@ -174,7 +178,7 @@ always @(posedge clk) begin
         // execute
         if (!slb_empty) begin
             // load
-            if (slb_stat == IDLE && ld_rdy) begin
+            if (ld_rdy && slb_stat == IDLE) begin
                 slb_stat <= LOADING;
                 mc_ld_ena <= `TRUE;
                 mc_ld_src <= dest[slb_head];
@@ -206,29 +210,21 @@ always @(posedge clk) begin
                 busy[slb_head] <= `FALSE;
             end
             // store
-            if (st_rdy) begin
-                if (rob_st_rdy) begin
-                    slb_pop_flag <= `TRUE;
-                    slb_head <= slb_head + 1;
-                    busy[slb_head] <= `FALSE;
-`ifdef DEBUG
-    // $display("slb2 %h", inst[slb_head]);
-`endif 
-                end
-                else begin
-                    rob_ena <= `TRUE;
-                    rob_src <= dest[slb_head];
-                    rob_val <= val2[slb_head];
-                    rob_addr <= val1[slb_head] + imm[slb_head];
-`ifdef DEBUG
-    // $display("slb1 %h", inst[slb_head]);
-`endif 
-                end
+            if (st_rdy && rob_commit_rdy) begin
+                slb_pop_flag <= `TRUE;
+                slb_head <= slb_head + 1;
+                busy[slb_head] <= `FALSE;
+                rob_ena <= `TRUE;
+                rob_src <= dest[slb_head];
+                rob_val <= val2[slb_head];
+                rob_addr <= val1[slb_head] + imm[slb_head];
             end
         end
         if (slb_stat == LOADING && mc_ld_done) begin
             slb_stat <= IDLE;
             mc_ld_ena <= `FALSE;
+            mc_ld_cnt <= mc_ld_cnt - 1;
+            // $display("%d", mc_ld_cnt-1);
         end
         // update
         if (cdb_alu_valid && !slb_empty) begin

@@ -78,6 +78,7 @@ module ROB #(
     input wire [`WORD_TP] cdb_ld_val,
 
     // memctrl
+    output reg [1:0] mc_st_cnt,
     output reg mc_st_ena,
     output reg [`ADDR_TP] mc_st_addr,
     output reg [`WORD_TP] mc_st_data,
@@ -121,7 +122,6 @@ reg                busy   [ROB_SIZE-1:0];
 reg [`INST_OPT_TP] opt    [ROB_SIZE-1:0];
 reg [`REG_IDX_TP]  dest   [ROB_SIZE-1:0];
 reg [`WORD_TP]     data   [ROB_SIZE-1:0];
-reg [`ADDR_TP]     addr   [ROB_SIZE-1:0];
 reg [`ADDR_TP]     cur_pc [ROB_SIZE-1:0];
 reg [`ADDR_TP]     mis_pc [ROB_SIZE-1:0];
 reg                pb_tk  [ROB_SIZE-1:0];
@@ -157,14 +157,10 @@ always @(posedge clk) begin
     rob_push_flag <= `FALSE;
     rob_pop_flag <= `FALSE;
 
-    if (rob_stat == STORING && mc_st_done) begin
-        rob_stat <= IDLE;
-        mc_st_ena <= `FALSE;
-    end
-
     if (rst) begin
         rob_stat <= IDLE;
         mc_st_ena <= `FALSE;
+        mc_st_cnt <= 0;
         lag_rob_siz <= 0;
         rob_head <= 1;
         rob_tail <= 1;
@@ -177,7 +173,6 @@ always @(posedge clk) begin
 `endif
             dest[i] <= `ZERO_REG_IDX;
             data[i] <= `ZERO_WORD;
-            addr[i] <= `ZERO_ADDR;
             cur_pc[i] <= `ZERO_ADDR; 
             mis_pc[i] <= `ZERO_ADDR;
             pb_tk [i] <= `FALSE; 
@@ -193,7 +188,6 @@ always @(posedge clk) begin
             opt [i] = `OPT_NONE;
             dest[i] = `ZERO_REG_IDX;
             data[i] = `ZERO_WORD;
-            addr[i] = `ZERO_ADDR;
             inque [i] = `FALSE;
             cur_pc[i] = `ZERO_ADDR; 
             mis_pc[i] = `ZERO_ADDR;
@@ -215,7 +209,6 @@ always @(posedge clk) begin
 `endif
             dest[rob_tail] <= id_dest;
             data[rob_tail] <= id_data;
-            addr[rob_tail] <= id_addr;
             cur_pc[rob_tail] <= id_cur_pc;
             mis_pc[rob_tail] <= id_mis_pc;
             pb_tk [rob_tail] <= id_pb_tk;
@@ -224,20 +217,21 @@ always @(posedge clk) begin
             rob_push_flag <= `TRUE;
         end
         // commit
-        if (!rob_empty && !busy[rob_head]) begin
+        if (!rob_empty) begin
             case (opt[rob_head])
                 // branch
                 `OPT_BEQ, `OPT_BNE, `OPT_BLT, `OPT_BGE, `OPT_BLTU, `OPT_BGEU: begin
-                    bp_fb_ena <= `TRUE;
-                    bp_fb_pc <= cur_pc[rob_head];
-                    bp_fb_tk <= rl_tk [rob_head];
-                    if (rl_tk[rob_head] != pb_tk[rob_head]) begin
-                        rob_rb_ena <= `TRUE;
-                        if_rb_pc <= mis_pc[rob_head];
-                    end
-                    inque[rob_head] <= `FALSE;
-                    rob_pop_flag <= `TRUE;
-                    rob_head <= ((rob_head == ROB_SIZE-1)? 1: rob_head + 1);
+                    if (!busy[rob_head]) begin 
+                        bp_fb_ena <= `TRUE;
+                        bp_fb_pc <= cur_pc[rob_head];
+                        bp_fb_tk <= rl_tk [rob_head];
+                        if (rl_tk[rob_head] != pb_tk[rob_head]) begin
+                            rob_rb_ena <= `TRUE;
+                            if_rb_pc <= mis_pc[rob_head];
+                        end
+                        inque[rob_head] <= `FALSE;
+                        rob_pop_flag <= `TRUE;
+                        rob_head <= ((rob_head == ROB_SIZE-1)? 1: rob_head + 1);
 `ifdef DEBUG
     cnt++;
     // if (cnt == 0) begin
@@ -252,12 +246,12 @@ always @(posedge clk) begin
     commit_cnt <= cnt;
     commit_inst <= inst[rob_head];
 `endif
+                    end
                 end
                 `OPT_SB, `OPT_SH, `OPT_SW: begin
-                    if (rob_stat == IDLE) begin
+                    if (slb_st_rdy) begin
                         mc_st_ena <= `TRUE;
                         rob_stat <= STORING;
-                        mc_st_addr <= addr[rob_head];
                         mc_st_data <= data[rob_head];
                         mc_st_len <= (opt[rob_head] == `OPT_SB? 0: (opt[rob_head] == `OPT_SH? 1: 3));
                         inque[rob_head] <= `FALSE;
@@ -276,22 +270,22 @@ always @(posedge clk) begin
     end
     commit_cnt <= cnt;
     commit_inst <= inst[rob_head];
-
 `endif
                     end
                 end
                 `OPT_JALR: begin
-                    if (dest[rob_head] != 0) begin
-                        reg_wr_ena <= `TRUE;
-                        reg_wr_rd <= dest[rob_head];
-                        reg_wr_val <= cur_pc[rob_head] + `NEXT_PC_INC;
-                        reg_wr_idx <= rob_head; 
-                    end
-                    rob_rb_ena <= `TRUE;
-                    if_rb_pc <= {data[rob_head][31:1], 1'b0}; 
-                    inque[rob_head] <= `FALSE;
-                    rob_pop_flag <= `TRUE;
-                    rob_head <= ((rob_head == ROB_SIZE-1)? 1: rob_head + 1);
+                    if (!busy[rob_head]) begin
+                        if (dest[rob_head] != 0) begin
+                            reg_wr_ena <= `TRUE;
+                            reg_wr_rd <= dest[rob_head];
+                            reg_wr_val <= cur_pc[rob_head] + `NEXT_PC_INC;
+                            reg_wr_idx <= rob_head; 
+                        end
+                        rob_rb_ena <= `TRUE;
+                        if_rb_pc <= {data[rob_head][31:1], 1'b0}; 
+                        inque[rob_head] <= `FALSE;
+                        rob_pop_flag <= `TRUE;
+                        rob_head <= ((rob_head == ROB_SIZE-1)? 1: rob_head + 1);
 `ifdef DEBUG
     cnt++;
     // if (cnt == 0) begin
@@ -305,19 +299,20 @@ always @(posedge clk) begin
     end
     commit_cnt <= cnt;
     commit_inst <= inst[rob_head];
-
 `endif
+                    end
                 end
                 default: begin
-                    if (dest[rob_head] != 0) begin
-                        reg_wr_ena <= `TRUE;
-                        reg_wr_rd <= dest[rob_head];
-                        reg_wr_val <= data[rob_head];
-                        reg_wr_idx <= rob_head;
-                    end
-                    inque[rob_head] <= `FALSE;
-                    rob_pop_flag <= `TRUE;
-                    rob_head <= ((rob_head == ROB_SIZE-1)? 1: rob_head + 1);
+                    if (!busy[rob_head]) begin
+                        if (dest[rob_head] != 0) begin
+                            reg_wr_ena <= `TRUE;
+                            reg_wr_rd <= dest[rob_head];
+                            reg_wr_val <= data[rob_head];
+                            reg_wr_idx <= rob_head;
+                        end
+                        inque[rob_head] <= `FALSE;
+                        rob_pop_flag <= `TRUE;
+                        rob_head <= ((rob_head == ROB_SIZE-1)? 1: rob_head + 1);
 `ifdef DEBUG
     cnt++;
     // if (cnt == 0) begin
@@ -331,8 +326,8 @@ always @(posedge clk) begin
     end
     commit_cnt <= cnt;
     commit_inst <= inst[rob_head];
-
 `endif
+                    end
                 end
             endcase
         end
@@ -341,24 +336,11 @@ always @(posedge clk) begin
             data[cdb_alu_src] <= cdb_alu_val;
             rl_tk[cdb_alu_src] <= cdb_alu_tk;
             busy[cdb_alu_src] <= `FALSE;
-`ifdef DEBUG
-if (cnt < 300) begin
-    // $display("upd from alu, %h %h", cdb_alu_src, cdb_alu_val);
-end
-`endif
         end
         if (cdb_ld_valid) begin
             data[cdb_ld_src] <= cdb_ld_val;
             busy[cdb_ld_src] <= `FALSE;
-            // $display("upd from ld, %h", cdb_ld_src);
         end
-        if (slb_valid) begin
-            data[slb_src] <= slb_val;
-            addr[slb_src] <= slb_addr;
-            busy[slb_src] <= `FALSE;
-            // $display("upd from slb, %h", slb_src);
-        end
-        
     end
 end
 
