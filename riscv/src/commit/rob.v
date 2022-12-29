@@ -61,12 +61,9 @@ module ROB #(
     output reg [`ROB_IDX_TP] reg_wr_idx,
     
     // slb
-    input wire slb_valid,
-    input wire [`ROB_IDX_TP] slb_src,
-    input wire [`WORD_TP] slb_val,
-    input wire [`ADDR_TP] slb_addr,
     input wire [`ROB_IDX_TP] slb_st_idx,
     output wire slb_st_rdy,
+    output wire slb_commit_rdy,
 
     // cdb
     input wire cdb_alu_valid,
@@ -76,14 +73,6 @@ module ROB #(
     input wire cdb_ld_valid,
     input wire [`ROB_IDX_TP] cdb_ld_src,
     input wire [`WORD_TP] cdb_ld_val,
-
-    // memctrl
-    output reg [1:0] mc_st_cnt,
-    output reg mc_st_ena,
-    output reg [`ADDR_TP] mc_st_addr,
-    output reg [`WORD_TP] mc_st_data,
-    output reg [3:0] mc_st_len,
-    input wire mc_st_done,
 
 `ifdef DEBUG
     output wire head_rdy,
@@ -101,9 +90,6 @@ module ROB #(
     output reg [`ADDR_TP] bp_fb_pc
 
 );
-
-parameter IDLE = 0, STORING = 1;
-reg rob_stat;
 
 reg [ROB_BIT-1:0] lag_rob_siz;
 reg rob_push_flag, rob_pop_flag;
@@ -138,9 +124,9 @@ assign id_val1 = ((cdb_alu_valid && cdb_alu_src == id_src1)? cdb_alu_val
 assign id_val2 = ((cdb_alu_valid && cdb_alu_src == id_src2)? cdb_alu_val
     : ((cdb_ld_valid && cdb_ld_src == id_src2)? cdb_ld_val: data[id_src2]));
 
-assign slb_st_rdy = inque[slb_st_idx] && !busy[slb_st_idx] && rob_head == slb_st_idx;
+assign slb_commit_rdy = inque[slb_st_idx] && rob_head == slb_st_idx;
 
-integer i, print_cnt = 0;
+integer i;
 integer cnt = 0; 
 
 `ifdef DEBUG
@@ -158,9 +144,6 @@ always @(posedge clk) begin
     rob_pop_flag <= `FALSE;
 
     if (rst) begin
-        rob_stat <= IDLE;
-        mc_st_ena <= `FALSE;
-        mc_st_cnt <= 0;
         lag_rob_siz <= 0;
         rob_head <= 1;
         rob_tail <= 1;
@@ -234,14 +217,8 @@ always @(posedge clk) begin
                         rob_head <= ((rob_head == ROB_SIZE-1)? 1: rob_head + 1);
 `ifdef DEBUG
     cnt++;
-    // if (cnt == 0) begin
-        print_cnt++;
     if (cnt >= `LOWER_BOUND && cnt < `UPPER_BOUND) begin
-        // if (cnt % `PRINT_BASE == 0) begin
-            // $display("%d. inst = %h @%h", cnt, inst[rob_head], cur_pc[rob_head]);
-            $display("%d. inst = %h @%h", print_cnt, inst[rob_head], cur_pc[rob_head]);
-        // end
-        commit_print_cnt <= print_cnt;
+        $display("%d. inst = %h @%h", cnt, inst[rob_head], cur_pc[rob_head]);
     end
     commit_cnt <= cnt;
     commit_inst <= inst[rob_head];
@@ -250,23 +227,13 @@ always @(posedge clk) begin
                 end
                 `OPT_SB, `OPT_SH, `OPT_SW: begin
                     if (slb_st_rdy) begin
-                        mc_st_ena <= `TRUE;
-                        rob_stat <= STORING;
-                        mc_st_data <= data[rob_head];
-                        mc_st_len <= (opt[rob_head] == `OPT_SB? 0: (opt[rob_head] == `OPT_SH? 1: 3));
                         inque[rob_head] <= `FALSE;
                         rob_pop_flag <= `TRUE;
                         rob_head <= ((rob_head == ROB_SIZE-1)? 1: rob_head + 1);
 `ifdef DEBUG
     cnt++;
-    // if (cnt == 0) begin
-        print_cnt++;
     if (cnt >= `LOWER_BOUND && cnt < `UPPER_BOUND) begin 
-        // if (cnt % `PRINT_BASE == 0) begin
-            // $display("%d. inst = %h @%h", cnt, inst[rob_head], cur_pc[rob_head]);
-            $display("%d. inst = %h @%h", print_cnt, inst[rob_head], cur_pc[rob_head]);
-        // end
-        commit_print_cnt <= print_cnt;
+        $display("%d. inst = %h @%h", cnt, inst[rob_head], cur_pc[rob_head]);
     end
     commit_cnt <= cnt;
     commit_inst <= inst[rob_head];
@@ -288,14 +255,8 @@ always @(posedge clk) begin
                         rob_head <= ((rob_head == ROB_SIZE-1)? 1: rob_head + 1);
 `ifdef DEBUG
     cnt++;
-    // if (cnt == 0) begin
-        print_cnt++;
     if (cnt >= `LOWER_BOUND && cnt < `UPPER_BOUND) begin 
-        // if (cnt % `PRINT_BASE == 0) begin
-            // $display("%d. inst = %h @%h", cnt, inst[rob_head], cur_pc[rob_head]);
-            $display("%d. inst = %h @%h", print_cnt, inst[rob_head], cur_pc[rob_head]);
-        // end
-        commit_print_cnt <= print_cnt;
+        $display("%d. inst = %h @%h", cnt, inst[rob_head], cur_pc[rob_head]);
     end
     commit_cnt <= cnt;
     commit_inst <= inst[rob_head];
@@ -315,14 +276,8 @@ always @(posedge clk) begin
                         rob_head <= ((rob_head == ROB_SIZE-1)? 1: rob_head + 1);
 `ifdef DEBUG
     cnt++;
-    // if (cnt == 0) begin
-        print_cnt++;
     if (cnt >= `LOWER_BOUND && cnt < `UPPER_BOUND) begin
-        // if (cnt % `PRINT_BASE == 0) begin
-            // $display("%d. inst = %h @%h", cnt, inst[rob_head], cur_pc[rob_head]);
-            $display("%d. inst = %h @%h", print_cnt, inst[rob_head], cur_pc[rob_head]);
-        // end
-        commit_print_cnt <= print_cnt;
+        $display("%d. inst = %h @%h", cnt, inst[rob_head], cur_pc[rob_head]);
     end
     commit_cnt <= cnt;
     commit_inst <= inst[rob_head];

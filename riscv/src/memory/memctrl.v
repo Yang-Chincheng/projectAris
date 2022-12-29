@@ -29,14 +29,12 @@ module memctrl(
     output reg [`LINE_TP] icache_fc_line,
 
     // slb
-    input wire [1:0] slb_st_cnt,
     input wire slb_st_valid, 
     input wire [`ADDR_TP] slb_st_addr,
     input wire [`WORD_TP] slb_st_data,
     input wire [3:0] slb_st_len,
     output reg slb_st_done,
 
-    input wire [1:0] slb_ld_cnt,
     input wire slb_ld_valid,
     input wire [`ADDR_TP] slb_ld_addr,
     input wire [3:0] slb_ld_len,
@@ -98,8 +96,6 @@ always @(posedge clk) begin
     else begin
         // launch a r/w procedure (st > ld > fetch)
         if (mc_stat == IDLE) begin
-            // $display("+ %d %d %d", slb_st_cnt, slb_ld_cnt, icache_fc_valid);
-            // $display("- %d %d %d", slb_st_cnt-slb_st_done, slb_ld_cnt-slb_ld_done, icache_fc_valid-icache_fc_done);
             if (slb_st_valid && !slb_st_done) begin
                 mc_stat <= STORING;
                 ram_rw_start <= `TRUE;

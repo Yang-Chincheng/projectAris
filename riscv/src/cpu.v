@@ -1,10 +1,10 @@
 // RISCV32I CPU top module
 // port modification allowed for debugging purposes
 
-`define DEBUG
-// `define ONLINE_JUDGE
-`define LOWER_BOUND 0000 // 5000
-`define UPPER_BOUND 1000 // 6000
+// `define DEBUG
+`define ONLINE_JUDGE
+`define LOWER_BOUND 1500 // 5000
+`define UPPER_BOUND 2000 // 6000
 `define PRINT_BASE 10000
 
 `include "utils.v"
@@ -357,21 +357,23 @@ RS cpu_rs(
     .cdb_ld_val(cdb_ld_val)
 );
 
-wire slb_to_rob_ena;
-wire [`ROB_IDX_TP] slb_to_rob_src;
-wire [`WORD_TP] slb_to_rob_val;
-wire [`ADDR_TP] slb_to_rob_addr;
 wire [`ROB_IDX_TP] slb_to_rob_st_idx;
-wire rob_to_slb_st_rdy;
+wire slb_to_rob_st_rdy;
+wire rob_to_slb_commit_rdy;
 
 wire slb_to_mc_ld_ena;
-wire [1:0] slb_to_mc_ld_cnt;
 wire [`ADDR_TP] slb_to_mc_ld_addr;
 wire [3:0] slb_to_mc_ld_len;
 wire slb_to_mc_ld_sext;
 wire [`ROB_IDX_TP] slb_to_mc_ld_src;
 wire mc_to_slb_ld_done;
 wire [`WORD_TP] mc_to_slb_ld_data;
+
+wire slb_to_mc_st_ena;
+wire [`ADDR_TP] slb_to_mc_st_addr;
+wire [3:0] slb_to_mc_st_len;
+wire [`WORD_TP] slb_to_mc_st_data;
+wire mc_to_slb_st_done; 
 
 SLB cpu_slb(
     .clk(clk_in),
@@ -398,7 +400,6 @@ SLB cpu_slb(
     .id_rob_idx(id_to_slb_rob_idx),
 
     // memctrl
-    .mc_ld_cnt(slb_to_mc_ld_cnt),
     .mc_ld_ena(slb_to_mc_ld_ena),
     .mc_ld_addr(slb_to_mc_ld_addr),
     .mc_ld_len(slb_to_mc_ld_len),
@@ -406,6 +407,12 @@ SLB cpu_slb(
     .mc_ld_src(slb_to_mc_ld_src),
     .mc_ld_done(mc_to_slb_ld_done),
     .mc_ld_data(mc_to_slb_ld_data),
+
+    .mc_st_ena(slb_to_mc_st_ena),
+    .mc_st_addr(slb_to_mc_st_addr),
+    .mc_st_data(slb_to_mc_st_data),
+    .mc_st_len(slb_to_mc_st_len),
+    .mc_st_done(mc_to_slb_st_done),
 
     // cdb
     .cdb_alu_valid(cdb_alu_valid),
@@ -416,12 +423,9 @@ SLB cpu_slb(
     .cdb_ld_val(cdb_ld_val),
 
     // rob
-    .rob_ena(slb_to_rob_ena),
-    .rob_src(slb_to_rob_src),
-    .rob_val(slb_to_rob_val),
-    .rob_addr(slb_to_rob_addr),
     .rob_st_idx(slb_to_rob_st_idx),
-    .rob_st_rdy(rob_to_slb_st_rdy)
+    .rob_st_rdy(slb_to_rob_st_rdy),
+    .rob_commit_rdy(rob_to_slb_commit_rdy)
 );
 
 wire [`ROB_IDX_TP] id_src1;
@@ -493,13 +497,6 @@ ALU cpu_alu(
     .cdb_alu_tk(cdb_alu_tk)
 );
 
-wire rob_to_mc_st_ena;
-wire [1:0] rob_to_mc_st_cnt;
-wire [`ADDR_TP] rob_to_mc_st_addr;
-wire [`WORD_TP] rob_to_mc_st_data;
-wire [3:0] rob_to_mc_st_len;
-wire mc_to_rob_st_done;
-
 ROB cpu_rob(
     .clk(clk_in),
     .rst(rst_in),
@@ -546,12 +543,9 @@ ROB cpu_rob(
     .reg_wr_idx(rob_to_reg_wr_idx),
     
     // slb
-    .slb_valid(slb_to_rob_ena),
-    .slb_src(slb_to_rob_src),
-    .slb_val(slb_to_rob_val),
-    .slb_addr(slb_to_rob_addr),
     .slb_st_idx(slb_to_rob_st_idx),
-    .slb_st_rdy(rob_to_slb_st_rdy),
+    .slb_st_rdy(slb_to_rob_st_rdy),
+    .slb_commit_rdy(rob_to_slb_commit_rdy),
 
     // cdb
     .cdb_alu_valid(cdb_alu_valid),
@@ -561,14 +555,6 @@ ROB cpu_rob(
     .cdb_ld_valid(cdb_ld_valid),
     .cdb_ld_src(cdb_ld_src),
     .cdb_ld_val(cdb_ld_val),
-
-    // memctrl
-    .mc_st_cnt(rob_to_mc_st_cnt),
-    .mc_st_ena(rob_to_mc_st_ena),
-    .mc_st_addr(rob_to_mc_st_addr),
-    .mc_st_data(rob_to_mc_st_data),
-    .mc_st_len(rob_to_mc_st_len),
-    .mc_st_done(mc_to_rob_st_done),
 
     // bp
     .bp_fb_ena(rob_to_bp_fb_ena),
@@ -615,16 +601,7 @@ memctrl cpu_memctrl(
     .icache_fc_done(mc_to_icache_fc_done),
     .icache_fc_line(mc_to_icache_fc_line),
 
-    // rob
-    .rob_st_cnt(rob_to_mc_st_cnt),
-    .rob_st_valid(rob_to_mc_st_ena),
-    .rob_st_addr(rob_to_mc_st_addr),
-    .rob_st_data(rob_to_mc_st_data),
-    .rob_st_len(rob_to_mc_st_len),
-    .rob_st_done(mc_to_rob_st_done),
-
     // slb
-    .slb_ld_cnt(slb_to_mc_ld_cnt),
     .slb_ld_valid(slb_to_mc_ld_ena),
     .slb_ld_addr(slb_to_mc_ld_addr),
     .slb_ld_len(slb_to_mc_ld_len),
@@ -632,6 +609,12 @@ memctrl cpu_memctrl(
     .slb_ld_src(slb_to_mc_ld_src),
     .slb_ld_done(mc_to_slb_ld_done),
     .slb_ld_data(mc_to_slb_ld_data),
+
+    .slb_st_valid(slb_to_mc_st_ena),
+    .slb_st_addr(slb_to_mc_st_addr),
+    .slb_st_data(slb_to_mc_st_data),
+    .slb_st_len(slb_to_mc_st_len),
+    .slb_st_done(mc_to_slb_st_done),
 
     // cdb
     .cdb_ld_ena(cdb_ld_valid),
