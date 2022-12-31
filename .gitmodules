@@ -1,0 +1,3 @@
+[submodule "riscv/serial"]
+	path = riscv/serial
+	url = https://github.com/wjwwood/serial.git
