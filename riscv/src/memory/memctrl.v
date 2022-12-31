@@ -3,8 +3,12 @@
 
 `ifdef ONLINE_JUDGE
     `include "utils.v"
+`else
+`ifdef FPGA_TEST
+    `include "utils.v"
 `else 
     `include "/home/Modem514/projectAris/riscv/src/utils.v"
+`endif
 `endif
 
 `define LINE_TP 127:0
@@ -59,8 +63,8 @@ module memctrl(
 wire [`BYTE_TP] st_bytes[3:0];
 assign {st_bytes[3], st_bytes[2], st_bytes[1], st_bytes[0]} = slb_st_data;
 
-parameter READ = 0, WRITE = 1;
-parameter IDLE = 0, FETCHING = 1, LOADING = 2, STORING = 3;
+localparam READ = 0, WRITE = 1;
+localparam IDLE = 0, FETCHING = 1, LOADING = 2, STORING = 3;
 reg [1:0] mc_stat;
 reg [3:0] counter;
 
@@ -111,7 +115,7 @@ always @(posedge clk) begin
                     counter <= 15;
                     ram_rw_sel <= READ;
                     ram_addr <= slb_ld_addr;
-                    for (i = 0; i < 4; i++) begin
+                    for (i = 0; i < 4; i = i + 1) begin
                         rd_buff[i] <= `ZERO_BYTE;
                     end
             end
@@ -125,7 +129,7 @@ always @(posedge clk) begin
         end
         // storing data from rob
         else if (mc_stat == STORING) begin
-`ifndef SIM
+`ifndef SIM_TEST
     if (!io_full) begin
 `endif
             ram_rw_start <= `FALSE;
@@ -142,13 +146,13 @@ always @(posedge clk) begin
                 ram_addr <= ram_addr + 1;
                 ram_wr_byte <= st_bytes[counter + 1];
             end
-`ifndef SIM
+`ifndef SIM_TEST
     end
 `endif
         end
         // loading data to cdb
         else if (mc_stat == LOADING) begin
-`ifndef SIM
+`ifndef SIM_TEST
     if (!io_full) begin
 `endif
             if (mc_rb) begin
@@ -179,13 +183,13 @@ always @(posedge clk) begin
                     ram_addr <= ram_addr + 1;
                 end
             end
-`ifndef SIM
+`ifndef SIM_TEST
     end
 `endif
         end
         // fetching data to icache
         else if (mc_stat == FETCHING) begin
-`ifndef SIM
+`ifndef SIM_TEST
     if (!io_full) begin
 `endif
             ram_rw_start <= `FALSE;
@@ -209,7 +213,7 @@ always @(posedge clk) begin
                 ram_addr <= ram_addr + 1;
             end
         end
-`ifndef SIM
+`ifndef SIM_TEST
     end
 `endif
     end

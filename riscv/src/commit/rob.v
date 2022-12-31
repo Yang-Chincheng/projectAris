@@ -3,8 +3,12 @@
 
 `ifdef ONLINE_JUDGE
     `include "utils.v"
+`else
+`ifdef FPGA_TEST
+    `include "utils.v"
 `else 
     `include "/home/Modem514/projectAris/riscv/src/utils.v"
+`endif
 `endif
 
 `define ROB_BIT `ROB_IDX_LN
@@ -141,7 +145,7 @@ always @(posedge clk) begin
         lag_rob_siz <= 0;
         rob_head <= 1;
         rob_tail <= 1;
-        for (i = 0; i < ROB_SIZE; i++) begin
+        for (i = 0; i < ROB_SIZE; i = i + 1) begin
             busy [i] <= `FALSE;
             inque[i] <= `FALSE;
             opt  [i] <= `OPT_NONE;
@@ -160,7 +164,7 @@ always @(posedge clk) begin
         lag_rob_siz <= 0;
         rob_head <= 1;
         rob_tail <= 1;
-        for (i = 0; i < ROB_SIZE; i++) begin
+        for (i = 0; i < ROB_SIZE; i = i + 1) begin
             busy[i] = `FALSE;
             opt [i] = `OPT_NONE;
             dest[i] = `ZERO_REG_IDX;
@@ -210,7 +214,7 @@ always @(posedge clk) begin
                         rob_pop_flag <= `TRUE;
                         rob_head <= ((rob_head == ROB_SIZE-1)? 1: rob_head + 1);
 `ifdef DEBUG
-    cnt++;
+    cnt+= 1;
     if (cnt >= `LOWER_BOUND && cnt < `UPPER_BOUND) begin
         $display("%d. inst = %h @%h", cnt, inst[rob_head], cur_pc[rob_head]);
     end
@@ -225,7 +229,7 @@ always @(posedge clk) begin
                         rob_pop_flag <= `TRUE;
                         rob_head <= ((rob_head == ROB_SIZE-1)? 1: rob_head + 1);
 `ifdef DEBUG
-    cnt++;
+    cnt+= 1;
     if (cnt >= `LOWER_BOUND && cnt < `UPPER_BOUND) begin 
         $display("%d. inst = %h @%h", cnt, inst[rob_head], cur_pc[rob_head]);
     end
@@ -248,7 +252,7 @@ always @(posedge clk) begin
                         rob_pop_flag <= `TRUE;
                         rob_head <= ((rob_head == ROB_SIZE-1)? 1: rob_head + 1);
 `ifdef DEBUG
-    cnt++;
+    cnt+= 1;
     if (cnt >= `LOWER_BOUND && cnt < `UPPER_BOUND) begin 
         $display("%d. inst = %h @%h", cnt, inst[rob_head], cur_pc[rob_head]);
     end
@@ -269,7 +273,7 @@ always @(posedge clk) begin
                         rob_pop_flag <= `TRUE;
                         rob_head <= ((rob_head == ROB_SIZE-1)? 1: rob_head + 1);
 `ifdef DEBUG
-    cnt++;
+    cnt+= 1;
     if (cnt >= `LOWER_BOUND && cnt < `UPPER_BOUND) begin
         $display("%d. inst = %h @%h", cnt, inst[rob_head], cur_pc[rob_head]);
     end

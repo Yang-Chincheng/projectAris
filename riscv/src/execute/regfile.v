@@ -3,8 +3,12 @@
 
 `ifdef ONLINE_JUDGE
     `include "utils.v"
+`else
+`ifdef FPGA_TEST
+    `include "utils.v"
 `else 
     `include "/home/Modem514/projectAris/riscv/src/utils.v"
+`endif
 `endif
 
 `define REG_BIT `REG_IDX_LN
@@ -70,7 +74,7 @@ assign dbg_val2 = val[15];
 
 always @(posedge clk) begin
     if (rst) begin
-        for (i = 0; i < REG_SIZE; i++) begin
+        for (i = 0; i < REG_SIZE; i = i + 1) begin
             src[i] <= `ZERO_ROB_IDX;
             val[i] <= `ZERO_WORD;
         end
@@ -79,7 +83,7 @@ always @(posedge clk) begin
         if (rob_wr_ena) begin
             val[rob_wr_rd] <= rob_wr_val;
         end
-        for (i = 0; i < REG_SIZE; i++) begin
+        for (i = 0; i < REG_SIZE; i = i + 1) begin
             src[i] <= `ZERO_ROB_IDX;
         end
     end

@@ -3,8 +3,12 @@
 
 `ifdef ONLINE_JUDGE
     `include "utils.v"
+`else
+`ifdef FPGA_TEST
+    `include "utils.v"
 `else 
     `include "/home/Modem514/projectAris/riscv/src/utils.v"
+`endif
 `endif
 
 `define ADDR_HASH 9:2
@@ -53,7 +57,7 @@ assign pd_off = (opc == `OPC_BR)?
 
 always @(posedge clk) begin
     if (rst) begin
-        for (i = 0; i < BHT_SIZE; i++) begin
+        for (i = 0; i < BHT_SIZE; i = i + 1) begin
             bht[i] = 2'b0;
         end
     end

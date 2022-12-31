@@ -3,8 +3,12 @@
 
 `ifdef ONLINE_JUDGE
     `include "utils.v"
+`else
+`ifdef FPGA_TEST
+    `include "utils.v"
 `else 
     `include "/home/Modem514/projectAris/riscv/src/utils.v"
+`endif
 `endif
 
 `define RS_BIT 4
@@ -139,7 +143,7 @@ always @(posedge clk) begin
 
     if (rst || rs_rb) begin
         lag_rs_siz <= 0;
-        for (i = 0; i < RS_SIZE; i++) begin
+        for (i = 0; i < RS_SIZE; i = i + 1) begin
             busy[i] = `FALSE;
 `ifdef DEBUG
     inst[i] = 0;
@@ -189,7 +193,7 @@ always @(posedge clk) begin
         end
         // update
         if (cdb_alu_valid) begin
-            for (i = 0; i < RS_SIZE; i++) begin
+            for (i = 0; i < RS_SIZE; i = i + 1) begin
                 if (busy[i] && src1[i] == cdb_alu_src) begin
                     src1[i] <= `ZERO_ROB_IDX;
                     val1[i] <= cdb_alu_val;
@@ -201,7 +205,7 @@ always @(posedge clk) begin
             end
         end
         if (cdb_ld_valid) begin
-            for (i = 0; i < RS_SIZE; i++) begin
+            for (i = 0; i < RS_SIZE; i = i + 1) begin
                 if (busy[i] && src1[i] == cdb_ld_src) begin
                     src1[i] <= `ZERO_ROB_IDX;
                     val1[i] <= cdb_ld_val;

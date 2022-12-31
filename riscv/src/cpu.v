@@ -3,7 +3,7 @@
 
 // `define DEBUG
 // `define ONLINE_JUDGE
-// `define SIM
+`define SIM_TEST
 `define LOWER_BOUND 1500
 `define UPPER_BOUND 2000
 `define PRINT_BASE 10000
@@ -41,6 +41,7 @@ module cpu (
 // implementation goes here
 
 // Specifications:
+
 // - Pause cpu(freeze pc, registers, etc.) when rdy_in is low
 // - Memory read result will be returned in the next cycle. Write takes 1 cycle(no need to wait)
 // - Memory is of size 128KB, with valid address ranging from 0x0 to 0x20000

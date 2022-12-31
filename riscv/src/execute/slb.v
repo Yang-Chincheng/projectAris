@@ -3,8 +3,12 @@
 
 `ifdef ONLINE_JUDGE
     `include "utils.v"
+`else
+`ifdef FPGA_TEST
+    `include "utils.v"
 `else 
     `include "/home/Modem514/projectAris/riscv/src/utils.v"
+`endif
 `endif
 
 `define SLB_BIT 4
@@ -70,7 +74,7 @@ module SLB #(
     input wire rob_commit_rdy
 );
 
-parameter IDLE = 0, LOADING = 1, STORING = 2;
+localparam IDLE = 0, LOADING = 1, STORING = 2;
 reg [1:0] slb_stat;
 reg [`ROB_IDX_TP] cache_rd_idx;
 
@@ -132,7 +136,7 @@ always @(posedge clk) begin
         slb_head <= 0;
         slb_tail <= 0;
         slb_stat <= IDLE;
-        for (i = 0; i < SLB_SIZE; i++) begin
+        for (i = 0; i < SLB_SIZE; i = i + 1) begin
 `ifdef DEBUG
     inst[i] <= 0;
 `endif
@@ -158,7 +162,7 @@ always @(posedge clk) begin
             slb_stat <= IDLE;
             mc_st_ena <= `FALSE;
         end
-        for (i = 0; i < SLB_SIZE; i++) begin
+        for (i = 0; i < SLB_SIZE; i = i + 1) begin
 `ifdef DEBUG
     inst[i] <= 0;
 `endif
@@ -251,7 +255,7 @@ always @(posedge clk) begin
         end
         // update
         if (cdb_alu_valid && !slb_empty) begin
-            for (i = 0; i < SLB_SIZE; i++) begin
+            for (i = 0; i < SLB_SIZE; i = i + 1) begin
                 if (busy[i] && src1[i] == cdb_alu_src) begin
                     src1[i] <= `ZERO_ROB_IDX;
                     val1[i] <= cdb_alu_val;
@@ -263,7 +267,7 @@ always @(posedge clk) begin
             end
         end
         if (cdb_ld_valid && !slb_empty) begin
-            for (i = 0; i < SLB_SIZE; i++) begin
+            for (i = 0; i < SLB_SIZE; i = i + 1) begin
                 if (busy[i] && src1[i] == cdb_ld_src) begin
                     src1[i] <= `ZERO_ROB_IDX;
                     val1[i] <= cdb_ld_val;

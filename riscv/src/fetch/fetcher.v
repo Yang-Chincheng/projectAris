@@ -3,8 +3,12 @@
 
 `ifdef ONLINE_JUDGE
     `include "utils.v"
+`else
+`ifdef FPGA_TEST
+    `include "utils.v"
 `else 
     `include "/home/Modem514/projectAris/riscv/src/utils.v"
+`endif
 `endif
 
 module fetcher(
@@ -49,11 +53,11 @@ assign cache_rd_addr = pc;
 assign bp_pb_pc = pc;
 assign bp_pb_inst = cache_hit_inst;
 
-wire [`ADDR_TP] dbg_nex_pc = (bp_pd_tk? jump_pc: succ_pc);
-wire [`ADDR_TP] dbg_mis_pc = (bp_pd_tk? succ_pc: jump_pc);
-
 wire [`ADDR_TP] succ_pc = pc + `NEXT_PC_INC;
 wire [`ADDR_TP] jump_pc = pc + bp_pd_off;
+
+wire [`ADDR_TP] dbg_nex_pc = (bp_pd_tk? jump_pc: succ_pc);
+wire [`ADDR_TP] dbg_mis_pc = (bp_pd_tk? succ_pc: jump_pc);
 
 always @(posedge clk) begin
     id_ena <= `FALSE;

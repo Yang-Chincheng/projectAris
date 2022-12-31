@@ -3,8 +3,12 @@
 
 `ifdef ONLINE_JUDGE
     `include "utils.v"
+`else
+`ifdef FPGA_TEST
+    `include "utils.v"
 `else 
     `include "/home/Modem514/projectAris/riscv/src/utils.v"
+`endif
 `endif
 
 `define LINE_NUM 256
@@ -50,7 +54,7 @@ module icache #(
     input wire [`LINE_TP] mc_fc_line
 );
 
-parameter IDLE = 0, FETCHING = 1;
+localparam IDLE = 0, FETCHING = 1;
 reg cache_stat;
 
 reg valid [LINE_NUM-1:0];
@@ -70,7 +74,7 @@ assign if_hit_word = (if_addr[3]?
 always @(posedge clk) begin
     if (rst) begin
         cache_stat <= IDLE;
-        for (i = 0; i < `LINE_NUM; i++) begin
+        for (i = 0; i < `LINE_NUM; i = i + 1) begin
             valid[i] = `FALSE;
             tag[i] = `ZERO_TAG;
             dat[i] = `ZERO_LINE;
