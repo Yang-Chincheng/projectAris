@@ -408,7 +408,9 @@ SLB cpu_slb(
     .mc_ld_sext(slb_to_mc_ld_sext),
     .mc_ld_src(slb_to_mc_ld_src),
     .mc_ld_done(mc_to_slb_ld_done),
+`ifdef DEBUG
     .mc_ld_data(mc_to_slb_ld_data),
+`endif
 
     .mc_st_ena(slb_to_mc_st_ena),
     .mc_st_addr(slb_to_mc_st_addr),
@@ -611,7 +613,9 @@ memctrl cpu_memctrl(
     .slb_ld_sext(slb_to_mc_ld_sext),
     .slb_ld_src(slb_to_mc_ld_src),
     .slb_ld_done(mc_to_slb_ld_done),
+`ifdef DEBUG
     .slb_ld_data(mc_to_slb_ld_data),
+`endif
 
     .slb_st_valid(slb_to_mc_st_ena),
     .slb_st_addr(slb_to_mc_st_addr),

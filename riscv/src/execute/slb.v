@@ -43,6 +43,7 @@ module SLB #(
     output wire [`WORD_TP] dbg_inst,   
     output wire [`ROB_IDX_TP] dbg_src1,
     output wire dbg_isld,
+    input wire [`WORD_TP] mc_ld_data,
 `endif
 
     // memctrl
@@ -52,7 +53,6 @@ module SLB #(
     output reg mc_ld_sext,
     output reg [`ROB_IDX_TP] mc_ld_src,
     input wire mc_ld_done,
-    input wire [`WORD_TP] mc_ld_data,
 
     output reg mc_st_ena,
     output reg [`ADDR_TP] mc_st_addr,

@@ -46,8 +46,10 @@ module memctrl(
     input wire slb_ld_sext,
     input wire [`ROB_IDX_TP] slb_ld_src,
     output reg slb_ld_done,
+`ifdef DEBUG
     output wire [`WORD_TP] slb_ld_data,
-    
+`endif
+
     // cdb
     output reg cdb_ld_ena,
     output reg [`ROB_IDX_TP] cdb_ld_src,

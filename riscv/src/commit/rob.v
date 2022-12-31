@@ -60,7 +60,7 @@ module ROB #(
     
     // slb
     input wire [`ROB_IDX_TP] slb_st_idx,
-    output wire slb_st_rdy,
+    input wire slb_st_rdy,
     output wire slb_commit_rdy,
 
     // cdb
