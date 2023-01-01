@@ -92,7 +92,7 @@ module ROB #(
 reg [ROB_BIT-1:0] lag_rob_siz;
 reg rob_push_flag, rob_pop_flag;
 wire [ROB_BIT-1:0] rob_siz = lag_rob_siz + (rob_push_flag? 1: 0) + (rob_pop_flag? -1: 0);
-assign rob_full = (rob_siz >= ROB_SIZE - 5);
+assign rob_full = (rob_siz >= ROB_SIZE - 6);
 assign rob_empty = (rob_siz == 0);
 reg [ROB_BIT-1:0] rob_head;
 reg [ROB_BIT-1:0] rob_tail;

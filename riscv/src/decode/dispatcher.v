@@ -109,9 +109,23 @@ module dispatcher(
     input wire [`WORD_TP] cdb_ld_val
 );
 
+reg disp_ena;
+reg [`WORD_TP] disp_inst;
+reg [`ADDR_TP] disp_cur_pc;
+reg [`ADDR_TP] disp_mis_pc;
+reg disp_pb_tk_stat;
+
+reg [`INST_TY_TP] disp_ty;
+reg [`INST_OPT_TP] disp_opt;
+reg [`REG_IDX_TP] disp_rd;
+reg [`REG_IDX_TP] disp_rs1;
+reg [`REG_IDX_TP] disp_rs2;
+reg [`WORD_TP] disp_imm;
+reg disp_is_ls;
+
 assign dec_inst = if_inst;
-assign reg_rs1 = dec_rs1;
-assign reg_rs2 = dec_rs2;
+assign reg_rs1 = disp_rs1;
+assign reg_rs2 = disp_rs2;
 assign rob_src1 = reg_src1;
 assign rob_src2 = reg_src2;
 
@@ -136,6 +150,7 @@ always @(posedge clk) begin
     slb_ena <= `FALSE;
     rob_ena <= `FALSE;
     reg_rn_ena <= `FALSE;
+    disp_ena <= `FALSE;
     
     if (rst) begin 
         // RESET
@@ -146,17 +161,32 @@ always @(posedge clk) begin
     else if (id_rb) begin
         // ROLLBACK
     end
-    else if (if_valid) begin
+    else begin
+    if (if_valid) begin
+        disp_ena <= `TRUE;
+        disp_inst <= if_inst;
+        disp_cur_pc <= if_cur_pc;
+        disp_mis_pc <= if_mis_pc;
+        disp_pb_tk_stat <= if_pb_tk_stat;
+        disp_ty <= dec_ty;
+        disp_opt <= dec_opt;
+        disp_rd <= dec_rd;
+        disp_rs1 <= dec_rs1;
+        disp_rs2 <= dec_rs2;
+        disp_imm <= dec_imm;
+        disp_is_ls <= dec_is_ls;
+    end
+    if (disp_ena) begin
         // issue to slb
-        if (dec_is_ls) begin
+        if (disp_is_ls) begin
 `ifdef DEBUG
-    slb_inst <= if_inst;
+    slb_inst <= disp_inst;
 `endif
             slb_ena <= `TRUE;
-            slb_opt <= dec_opt;
-            slb_imm <= dec_imm;
+            slb_opt <= disp_opt;
+            slb_imm <= disp_imm;
             slb_rob_idx <= rob_idx;
-            case (dec_ty)
+            case (disp_ty)
                 `TYPE_S: begin
                     slb_src1 <= upd_src1;
                     slb_val1 <= upd_val1;
@@ -177,13 +207,13 @@ always @(posedge clk) begin
         // issue to rs
         else begin
 `ifdef DEBUG
-    rs_inst <= if_inst;
+    rs_inst <= disp_inst;
 `endif
             rs_ena <= `TRUE;
-            rs_opt <= dec_opt;
-            rs_imm <= dec_imm;
+            rs_opt <= disp_opt;
+            rs_imm <= disp_imm;
             rs_rob_idx <= rob_idx;
-            case (dec_ty)
+            case (disp_ty)
                 `TYPE_R, `TYPE_B, `TYPE_S: begin
                     rs_src1 <= upd_src1;
                     rs_val1 <= upd_val1;
@@ -198,13 +228,13 @@ always @(posedge clk) begin
                 end
                 `TYPE_U: begin
                     rs_src1 <= `ZERO_ROB_IDX;
-                    rs_val1 <= (dec_opt == `OPT_LUI)? `ZERO_WORD: if_cur_pc;
+                    rs_val1 <= (disp_opt == `OPT_LUI)? `ZERO_WORD: disp_cur_pc;
                     rs_src2 <= `ZERO_ROB_IDX;
                     rs_val2 <= `ZERO_WORD;
                 end
                 `TYPE_J: begin
                     rs_src1 <= `ZERO_ROB_IDX;
-                    rs_val1 <= if_cur_pc;
+                    rs_val1 <= disp_cur_pc;
                     rs_src2 <= `ZERO_ROB_IDX;
                     rs_val2 <= `NEXT_PC_INC;
                 end
@@ -214,31 +244,31 @@ always @(posedge clk) begin
 
         // issue to rob
 `ifdef DEBUG
-    rob_inst <= if_inst;
+    rob_inst <= disp_inst;
 `endif
         rob_ena <= `TRUE;
-        rob_opt <= dec_opt;
-        rob_cur_pc <= if_cur_pc;
-        rob_mis_pc <= if_mis_pc;
-        rob_pb_tk_stat <= if_pb_tk_stat;
+        rob_opt <= disp_opt;
+        rob_cur_pc <= disp_cur_pc;
+        rob_mis_pc <= disp_mis_pc;
+        rob_pb_tk_stat <= disp_pb_tk_stat;
         rob_data <= `ZERO_WORD;
         rob_addr <= `ZERO_ADDR;
-        case (dec_ty)
+        case (disp_ty)
             `TYPE_B, `TYPE_S: begin
                 rob_dest <= `ZERO_REG_IDX;
             end
             `TYPE_R, `TYPE_J, `TYPE_U, `TYPE_I: begin
-                rob_dest <= dec_rd;
-                if (dec_rd != 0) begin
+                rob_dest <= disp_rd;
+                if (disp_rd != 0) begin
                     reg_rn_ena <= `TRUE;
-                    reg_rn_rd <= dec_rd;
+                    reg_rn_rd <= disp_rd;
                     reg_rn_idx <= rob_idx;
                 end
             end
             default: begin end
         endcase
     end
-    
+    end
 end
     
 endmodule

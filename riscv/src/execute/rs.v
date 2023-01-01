@@ -78,7 +78,7 @@ reg [RS_BIT-1:0] lag_rs_siz;
 reg rs_push_flag, rs_pop_flag;
 wire [RS_BIT-1:0] rs_siz = lag_rs_siz + (rs_push_flag? 1: 0) + (rs_pop_flag? -1: 0);
 
-assign rs_full = rs_siz >= RS_SIZE - 3;
+assign rs_full = rs_siz >= RS_SIZE - 4;
 assign rs_empty = rs_siz == 0;
 
 wire [RS_BIT-1:0] idle_idx = 

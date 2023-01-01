@@ -44,7 +44,7 @@ always @(*) begin
         cdb_alu_val = 0;
         cdb_alu_tk = 0;
     end
-    else if (!rdy || !alu_en || alu_st) begin
+    else if (!rdy) begin
         // STALL
         cdb_alu_valid = `FALSE;
         cdb_alu_src = 0;

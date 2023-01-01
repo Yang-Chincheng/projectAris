@@ -83,7 +83,7 @@ reg slb_push_flag;
 reg slb_pop_flag;
 
 wire [SLB_BIT-1:0] slb_siz = lag_slb_siz + (slb_push_flag? 1: 0) + (slb_pop_flag? -1: 0);
-assign slb_full  = (slb_siz >= SLB_SIZE - 3);
+assign slb_full  = (slb_siz >= SLB_SIZE - 4);
 assign slb_empty = (slb_siz == 0);
 
 reg [SLB_BIT-1:0] slb_head; // queue element index [slb_head, slb_tail) 
