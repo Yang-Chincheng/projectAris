@@ -11,18 +11,18 @@
 `endif
 `endif
 
-`define LINE_NUM 256
+`define LINE_NUM 64
 `define LINE_SZ 4
 `define LINE_TP 127:0
 `define LINE_LN 128
 `define ZERO_LINE (`LINE_LN'b0)
 
-`define TAG_RG 31:12
-`define TAG_LN 20
+`define TAG_RG 31:10
+`define TAG_LN 22
 `define ZERO_TAG (`TAG_LN'b0)
 
-`define IDX_RG 11:4
-`define IDX_LN 8
+`define IDX_RG 9:4
+`define IDX_LN 6
 `define ZERO_IDX (`IDX_LN'b0)
 
 `define OFF_RG 3:2
