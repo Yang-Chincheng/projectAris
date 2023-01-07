@@ -6,5 +6,8 @@
                 "italic": true
             }
         }
+    },
+    "files.associations": {
+        "io.h": "c"
     }
 }
