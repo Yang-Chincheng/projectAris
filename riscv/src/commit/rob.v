@@ -59,9 +59,11 @@ module ROB #(
     output reg [`ROB_IDX_TP] reg_wr_idx,
     
     // slb
+    input wire [`ROB_IDX_TP] slb_ld_idx,
     input wire [`ROB_IDX_TP] slb_st_idx,
-    input wire slb_st_rdy,
-    output wire slb_commit_rdy,
+    input wire slb_st_exec_rdy,
+    output wire slb_ld_commit_rdy,
+    output wire slb_st_commit_rdy,
 
     // cdb
     input wire cdb_alu_valid,
@@ -89,11 +91,11 @@ module ROB #(
 
 );
 
-reg [ROB_BIT-1:0] lag_rob_siz;
+reg [ROB_BIT-1:0] q_rob_siz;
 reg rob_push_flag, rob_pop_flag;
-wire [ROB_BIT-1:0] rob_siz = lag_rob_siz + (rob_push_flag? 1: 0) + (rob_pop_flag? -1: 0);
-assign rob_full = (rob_siz >= ROB_SIZE - 6);
-assign rob_empty = (rob_siz == 0);
+wire [ROB_BIT-1:0] d_rob_siz = q_rob_siz + (rob_push_flag? 1: 0) + (rob_pop_flag? -1: 0);
+assign rob_full = (d_rob_siz >= ROB_SIZE - 5);
+assign rob_empty = (d_rob_siz == 0);
 reg [ROB_BIT-1:0] rob_head;
 reg [ROB_BIT-1:0] rob_tail;
 
@@ -122,7 +124,8 @@ assign id_val1 = ((cdb_alu_valid && cdb_alu_src == id_src1)? cdb_alu_val
 assign id_val2 = ((cdb_alu_valid && cdb_alu_src == id_src2)? cdb_alu_val
     : ((cdb_ld_valid && cdb_ld_src == id_src2)? cdb_ld_val: data[id_src2]));
 
-assign slb_commit_rdy = inque[slb_st_idx] && rob_head == slb_st_idx;
+assign slb_ld_commit_rdy = inque[slb_ld_idx] && rob_head == slb_ld_idx;
+assign slb_st_commit_rdy = inque[slb_st_idx] && rob_head == slb_st_idx;
 
 integer i;
 integer cnt = 0; 
@@ -137,12 +140,12 @@ always @(posedge clk) begin
     reg_wr_ena <= `FALSE;
     bp_fb_ena <= `FALSE;
     rob_rb_ena <= `FALSE;
-    lag_rob_siz <= rob_siz;
+    q_rob_siz <= d_rob_siz;
     rob_push_flag <= `FALSE;
     rob_pop_flag <= `FALSE;
 
     if (rst) begin
-        lag_rob_siz <= 0;
+        q_rob_siz <= 0;
         rob_head <= 1;
         rob_tail <= 1;
         for (i = 0; i < ROB_SIZE; i = i + 1) begin
@@ -161,7 +164,7 @@ always @(posedge clk) begin
         end
     end 
     else if (rob_rb_ena) begin
-        lag_rob_siz <= 0;
+        q_rob_siz <= 0;
         rob_head <= 1;
         rob_tail <= 1;
         for (i = 0; i < ROB_SIZE; i = i + 1) begin
@@ -214,7 +217,7 @@ always @(posedge clk) begin
                         rob_pop_flag <= `TRUE;
                         rob_head <= ((rob_head == ROB_SIZE-1)? 1: rob_head + 1);
 `ifdef DEBUG
-    cnt+= 1;
+    cnt = cnt + 1;
     if (cnt >= `LOWER_BOUND && cnt < `UPPER_BOUND) begin
         $display("%d. inst = %h @%h", cnt, inst[rob_head], cur_pc[rob_head]);
     end
@@ -224,12 +227,12 @@ always @(posedge clk) begin
                     end
                 end
                 `OPT_SB, `OPT_SH, `OPT_SW: begin
-                    if (slb_st_rdy) begin
+                    if (slb_st_exec_rdy) begin
                         inque[rob_head] <= `FALSE;
                         rob_pop_flag <= `TRUE;
                         rob_head <= ((rob_head == ROB_SIZE-1)? 1: rob_head + 1);
 `ifdef DEBUG
-    cnt+= 1;
+    cnt = cnt + 1;
     if (cnt >= `LOWER_BOUND && cnt < `UPPER_BOUND) begin 
         $display("%d. inst = %h @%h", cnt, inst[rob_head], cur_pc[rob_head]);
     end
@@ -252,7 +255,7 @@ always @(posedge clk) begin
                         rob_pop_flag <= `TRUE;
                         rob_head <= ((rob_head == ROB_SIZE-1)? 1: rob_head + 1);
 `ifdef DEBUG
-    cnt+= 1;
+    cnt = cnt + 1;
     if (cnt >= `LOWER_BOUND && cnt < `UPPER_BOUND) begin 
         $display("%d. inst = %h @%h", cnt, inst[rob_head], cur_pc[rob_head]);
     end
@@ -273,7 +276,7 @@ always @(posedge clk) begin
                         rob_pop_flag <= `TRUE;
                         rob_head <= ((rob_head == ROB_SIZE-1)? 1: rob_head + 1);
 `ifdef DEBUG
-    cnt+= 1;
+    cnt = cnt + 1;
     if (cnt >= `LOWER_BOUND && cnt < `UPPER_BOUND) begin
         $display("%d. inst = %h @%h", cnt, inst[rob_head], cur_pc[rob_head]);
     end

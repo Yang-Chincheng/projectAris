@@ -69,22 +69,24 @@ module SLB #(
     input wire [`WORD_TP] cdb_ld_val,
 
     // rob
+    output wire [`ROB_IDX_TP] rob_ld_idx,
     output wire [`ROB_IDX_TP] rob_st_idx,
-    output wire rob_st_rdy,
-    input wire rob_commit_rdy
+    output wire rob_st_exec_rdy,
+    input wire rob_ld_commit_rdy,
+    input wire rob_st_commit_rdy
 );
 
 localparam IDLE = 0, LOADING = 1, STORING = 2;
 reg [1:0] slb_stat;
 reg [`ROB_IDX_TP] cache_rd_idx;
 
-reg [SLB_BIT-1:0] lag_slb_siz;
+reg [SLB_BIT-1:0] q_slb_siz;
 reg slb_push_flag;
 reg slb_pop_flag;
 
-wire [SLB_BIT-1:0] slb_siz = lag_slb_siz + (slb_push_flag? 1: 0) + (slb_pop_flag? -1: 0);
-assign slb_full  = (slb_siz >= SLB_SIZE - 4);
-assign slb_empty = (slb_siz == 0);
+wire [SLB_BIT-1:0] d_slb_siz = q_slb_siz + (slb_push_flag? 1: 0) + (slb_pop_flag? -1: 0);
+assign slb_full  = (d_slb_siz >= SLB_SIZE - 3);
+assign slb_empty = (d_slb_siz == 0);
 
 reg [SLB_BIT-1:0] slb_head; // queue element index [slb_head, slb_tail) 
 reg [SLB_BIT-1:0] slb_tail;
@@ -118,19 +120,21 @@ wire [`WORD_TP] upd_val2 = ((cdb_alu_valid && cdb_alu_src == id_src2)? cdb_alu_v
 
 wire ld_rdy = isld[slb_head] && src1[slb_head] == `ZERO_ROB_IDX;
 wire st_rdy = !isld[slb_head] && src1[slb_head] == `ZERO_ROB_IDX && src2[slb_head] == `ZERO_ROB_IDX;
+wire [`ADDR_TP] ls_addr = val1[slb_head] + imm[slb_head];
 
+assign rob_ld_idx = isld[slb_head]? dest[slb_head]: `ZERO_ROB_IDX;
 assign rob_st_idx = isld[slb_head]? `ZERO_ROB_IDX: dest[slb_head];
-assign rob_st_rdy = !rst && rdy && !slb_rb && !slb_empty && st_rdy && slb_stat == IDLE;
+assign rob_st_exec_rdy = !rst && rdy && !slb_rb && !slb_empty && st_rdy && slb_stat == IDLE;
 
 always @(posedge clk) begin
     slb_push_flag <= `FALSE;
     slb_pop_flag <= `FALSE;
-    lag_slb_siz <= slb_siz;
+    q_slb_siz <= d_slb_siz;
 
     if (rst) begin
         mc_ld_ena <= `FALSE;
         mc_st_ena <= `FALSE;
-        lag_slb_siz <= 0;
+        q_slb_siz <= 0;
         slb_push_flag <= `FALSE;
         slb_pop_flag <= `FALSE;
         slb_head <= 0;
@@ -151,7 +155,7 @@ always @(posedge clk) begin
         end
     end
     else if (slb_rb) begin
-        lag_slb_siz <= 0;
+        q_slb_siz <= 0;
         slb_push_flag <= `FALSE;
         slb_pop_flag <= `FALSE;
         slb_head <= 0;
@@ -200,11 +204,11 @@ always @(posedge clk) begin
         // execute
         if (!slb_empty && slb_stat == IDLE) begin
             // load
-            if (ld_rdy) begin
+            if (ld_rdy && (ls_addr[17:16] != 2'b11 || rob_ld_commit_rdy)) begin
                 slb_stat <= LOADING;
                 mc_ld_ena <= `TRUE;
                 mc_ld_src <= dest[slb_head];
-                mc_ld_addr <= val1[slb_head] + imm[slb_head];
+                mc_ld_addr <= ls_addr;
                 case (opt[slb_head])
                     `OPT_LB: begin
                         mc_ld_len <= 0;
@@ -232,14 +236,14 @@ always @(posedge clk) begin
                 busy[slb_head] <= `FALSE;
             end
             // store
-            if (st_rdy && rob_commit_rdy) begin
+            if (st_rdy && rob_st_commit_rdy) begin
                 slb_stat <= STORING;
                 slb_pop_flag <= `TRUE;
                 slb_head <= slb_head + 1;
                 busy[slb_head] <= `FALSE;
                 mc_st_ena <= `TRUE;
                 mc_st_data <= val2[slb_head];
-                mc_st_addr <= val1[slb_head] + imm[slb_head];
+                mc_st_addr <= ls_addr;
                 mc_st_len <= (opt[slb_head] == `OPT_SB? 0: (opt[slb_head] == `OPT_SH? 1: 3));
             end
         end

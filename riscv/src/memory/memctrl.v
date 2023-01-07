@@ -93,7 +93,7 @@ always @(posedge clk) begin
         ram_rw_sel <= READ;
         ram_addr <= `ZERO_ADDR;
         ram_rw_start <= `FALSE;
-        for (i = 0; i < 16; ++i) begin
+        for (i = 0; i < 16; i = i + 1) begin
             rd_buff[i] <= `ZERO_BYTE;
         end
     end
@@ -104,12 +104,18 @@ always @(posedge clk) begin
         // launch a r/w procedure (st > ld > fetch)
         if (mc_stat == IDLE) begin
             if (slb_st_valid && !slb_st_done) begin
+`ifndef SIM_TEST
+    if (slb_st_addr[17:16] != 2'b11 || !io_full) begin
+`endif
                 mc_stat <= STORING;
                 ram_rw_start <= `TRUE;
                 counter <= 0;
                 ram_rw_sel <= WRITE;
                 ram_addr <= slb_st_addr;
                 ram_wr_byte <= st_bytes[0];
+`ifndef SIM_TEST
+    end
+`endif
             end
             else if (slb_ld_valid && !slb_ld_done && !mc_rb) begin
                     mc_stat <= LOADING;
@@ -132,7 +138,7 @@ always @(posedge clk) begin
         // storing data from rob
         else if (mc_stat == STORING) begin
 `ifndef SIM_TEST
-    if (!io_full) begin
+    if (ram_addr[17:16] != 2'b11 || !io_full) begin
 `endif
             ram_rw_start <= `FALSE;
             if (counter == slb_st_len) begin
@@ -154,9 +160,6 @@ always @(posedge clk) begin
         end
         // loading data to cdb
         else if (mc_stat == LOADING) begin
-`ifndef SIM_TEST
-    if (!io_full) begin
-`endif
             if (mc_rb) begin
                 mc_stat <= IDLE;
                 counter <= 0;
@@ -185,15 +188,9 @@ always @(posedge clk) begin
                     ram_addr <= ram_addr + 1;
                 end
             end
-`ifndef SIM_TEST
-    end
-`endif
         end
         // fetching data to icache
         else if (mc_stat == FETCHING) begin
-`ifndef SIM_TEST
-    if (!io_full) begin
-`endif
             ram_rw_start <= `FALSE;
             rd_buff[counter] <= ram_rd_byte;
             if (!ram_rw_start && counter == 15) begin
@@ -215,9 +212,6 @@ always @(posedge clk) begin
                 ram_addr <= ram_addr + 1;
             end
         end
-`ifndef SIM_TEST
-    end
-`endif
     end
 end
     

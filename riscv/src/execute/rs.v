@@ -74,12 +74,12 @@ reg [`WORD_TP]     val2 [RS_SIZE-1:0];
 reg [`WORD_TP]     imm  [RS_SIZE-1:0];
 reg [`ROB_IDX_TP]  idx  [RS_SIZE-1:0];
 
-reg [RS_BIT-1:0] lag_rs_siz;
+reg [RS_BIT-1:0] q_rs_siz;
 reg rs_push_flag, rs_pop_flag;
-wire [RS_BIT-1:0] rs_siz = lag_rs_siz + (rs_push_flag? 1: 0) + (rs_pop_flag? -1: 0);
+wire [RS_BIT-1:0] d_rs_siz = q_rs_siz + (rs_push_flag? 1: 0) + (rs_pop_flag? -1: 0);
 
-assign rs_full = rs_siz >= RS_SIZE - 4;
-assign rs_empty = rs_siz == 0;
+assign rs_full = d_rs_siz >= RS_SIZE - 3;
+assign rs_empty = d_rs_siz == 0;
 
 wire [RS_BIT-1:0] idle_idx = 
     (!busy[ 0]?  0: (!busy[ 1]?  1: (!busy[ 2]?  2: (!busy[ 3]?  3:
@@ -139,10 +139,10 @@ always @(posedge clk) begin
     alu_ena <= `FALSE;
     rs_push_flag <= `FALSE;
     rs_pop_flag <= `FALSE;
-    lag_rs_siz <= rs_siz;
+    q_rs_siz <= d_rs_siz;
 
     if (rst || rs_rb) begin
-        lag_rs_siz <= 0;
+        q_rs_siz <= 0;
         for (i = 0; i < RS_SIZE; i = i + 1) begin
             busy[i] = `FALSE;
 `ifdef DEBUG

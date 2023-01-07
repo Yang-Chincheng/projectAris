@@ -360,8 +360,10 @@ RS cpu_rs(
 );
 
 wire [`ROB_IDX_TP] slb_to_rob_st_idx;
+wire [`ROB_IDX_TP] slb_to_rob_ld_idx;
 wire slb_to_rob_st_rdy;
-wire rob_to_slb_commit_rdy;
+wire rob_to_slb_ld_commit_rdy;
+wire rob_to_slb_st_commit_rdy;
 
 wire slb_to_mc_ld_ena;
 wire [`ADDR_TP] slb_to_mc_ld_addr;
@@ -378,6 +380,11 @@ wire [`WORD_TP] slb_to_mc_st_data;
 wire mc_to_slb_st_done; 
 
 SLB cpu_slb(
+`ifdef DEBUG
+    .id_inst(id_to_slb_inst),
+    .mc_ld_data(mc_to_slb_ld_data),
+`endif
+
     .clk(clk_in),
     .rst(rst_in),
     .rdy(rdy_in),
@@ -389,9 +396,6 @@ SLB cpu_slb(
     .slb_empty(),
 
     // idu
-`ifdef DEBUG
-    .id_inst(id_to_slb_inst),
-`endif
     .id_valid(id_to_slb_ena),
     .id_opt(id_to_slb_opt),
     .id_src1(id_to_slb_src1),
@@ -408,9 +412,6 @@ SLB cpu_slb(
     .mc_ld_sext(slb_to_mc_ld_sext),
     .mc_ld_src(slb_to_mc_ld_src),
     .mc_ld_done(mc_to_slb_ld_done),
-`ifdef DEBUG
-    .mc_ld_data(mc_to_slb_ld_data),
-`endif
 
     .mc_st_ena(slb_to_mc_st_ena),
     .mc_st_addr(slb_to_mc_st_addr),
@@ -427,9 +428,11 @@ SLB cpu_slb(
     .cdb_ld_val(cdb_ld_val),
 
     // rob
+    .rob_ld_idx(slb_to_rob_ld_idx),
     .rob_st_idx(slb_to_rob_st_idx),
-    .rob_st_rdy(slb_to_rob_st_rdy),
-    .rob_commit_rdy(rob_to_slb_commit_rdy)
+    .rob_st_exec_rdy(slb_to_rob_st_rdy),
+    .rob_ld_commit_rdy(rob_to_slb_ld_commit_rdy),
+    .rob_st_commit_rdy(rob_to_slb_st_commit_rdy)
 );
 
 wire [`ROB_IDX_TP] id_src1;
@@ -443,6 +446,11 @@ wire [`WORD_TP] rob_to_reg_wr_val;
 wire [`ROB_IDX_TP] rob_to_reg_wr_idx;
 
 regfile cpu_regfile(
+`ifdef DEBUG
+    .dbg_val(),
+    .dbg_src(),
+`endif
+
     .clk(clk_in),
     .rst(rst_in),
     .rdy(rdy_in),
@@ -458,11 +466,6 @@ regfile cpu_regfile(
     .id_src2(reg_to_id_src2),
     .id_val1(reg_to_id_val1),
     .id_val2(reg_to_id_val2),
-
-`ifdef DEBUG
-    .dbg_val(),
-    .dbg_src(),
-`endif
     
     .id_rn_ena(id_to_reg_rn_ena),
     .id_rn_rd(id_to_reg_rn_rd),
@@ -476,6 +479,10 @@ regfile cpu_regfile(
 );
 
 ALU cpu_alu(
+`ifdef DEBUG
+    .rs_inst(rs_to_alu_inst),
+`endif 
+
     .clk(clk_in),
     .rst(rst_in),
     .rdy(rdy_in),
@@ -484,9 +491,6 @@ ALU cpu_alu(
     .alu_st(`FALSE),
     
     // rs
-`ifdef DEBUG
-    .rs_inst(rs_to_alu_inst),
-`endif 
     .rs_valid(rs_to_alu_ena),
     .rs_opt(rs_to_alu_opt),
     .rs_val1(rs_to_alu_val1),
@@ -502,6 +506,14 @@ ALU cpu_alu(
 );
 
 ROB cpu_rob(
+`ifdef DEBUG
+    .id_inst(id_to_rob_inst),
+    .head_rdy(),
+    .commit_cnt(),
+    .commit_inst(),
+    .commit_print_cnt(),
+`endif
+
     .clk(clk_in),
     .rst(rst_in),
     .rdy(rdy_in),
@@ -524,13 +536,6 @@ ROB cpu_rob(
     .id_val1(rob_to_id_val1),
     .id_val2(rob_to_id_val2),
     
-`ifdef DEBUG
-    .id_inst(id_to_rob_inst),
-    .head_rdy(),
-    .commit_cnt(),
-    .commit_inst(),
-    .commit_print_cnt(),
-`endif
     .id_valid(id_to_rob_ena),
     .id_opt(id_to_rob_opt),
     .id_dest(id_to_rob_dest),
@@ -547,9 +552,11 @@ ROB cpu_rob(
     .reg_wr_idx(rob_to_reg_wr_idx),
     
     // slb
+    .slb_ld_idx(slb_to_rob_ld_idx),
     .slb_st_idx(slb_to_rob_st_idx),
-    .slb_st_rdy(slb_to_rob_st_rdy),
-    .slb_commit_rdy(rob_to_slb_commit_rdy),
+    .slb_st_exec_rdy(slb_to_rob_st_rdy),
+    .slb_ld_commit_rdy(rob_to_slb_ld_commit_rdy),
+    .slb_st_commit_rdy(rob_to_slb_st_commit_rdy),
 
     // cdb
     .cdb_alu_valid(cdb_alu_valid),
@@ -591,6 +598,10 @@ icache cpu_icache(
 );
 
 memctrl cpu_memctrl(
+`ifdef DEBUG
+    .slb_ld_data(mc_to_slb_ld_data),
+`endif
+
     .clk(clk_in),
     .rst(rst_in),
     .rdy(rdy_in),
@@ -613,9 +624,6 @@ memctrl cpu_memctrl(
     .slb_ld_sext(slb_to_mc_ld_sext),
     .slb_ld_src(slb_to_mc_ld_src),
     .slb_ld_done(mc_to_slb_ld_done),
-`ifdef DEBUG
-    .slb_ld_data(mc_to_slb_ld_data),
-`endif
 
     .slb_st_valid(slb_to_mc_st_ena),
     .slb_st_addr(slb_to_mc_st_addr),
@@ -634,17 +642,5 @@ memctrl cpu_memctrl(
     .ram_wr_byte(mem_dout),
     .ram_rd_byte(mem_din)
 );
-
-always @(posedge clk_in) begin
-    if (rst_in) begin
-
-    end
-    else if (!rdy_in) begin
-
-    end
-    else begin
-
-    end
-end
 
 endmodule
