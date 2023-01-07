@@ -1,6 +1,6 @@
 # ProjectAris <img src="docs/assets/Alice_Halo.webp" width=40 />
 
-![SimTest](https://img.shields.io/badge/Sim_Test-passed-success) ![FPGATest](https://img.shields.io/badge/FPGA_Test-passed-success?logo=Xilinx) ![Dependencies](img.shields.io/badge/dependencies-riscv--gnu--toolchain_serial-blue) ![Formatter](img.shields.io/badge/formatter-iStyle-blue)  
+![SimTest](https://img.shields.io/badge/Sim_Test-passed-success) ![FPGATest](https://img.shields.io/badge/FPGA_Test-passed-success?logo=Xilinx) ![Dependencies](https://img.shields.io/badge/dependencies-riscv--gnu--toolchain_serial-blue) ![Formatter](https://img.shields.io/badge/formatter-iStyle-blue)
 
 🕹️ *ProjectAris* aims at implementing a single core, single thread and RV32I based CPU in Verilog. 
 
