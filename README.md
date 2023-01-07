@@ -1,8 +1,10 @@
 # ProjectAris <img src="docs/assets/Alice_Halo.webp" width=40 />
 
-![](img.shields.io/badge/Sim_Test-passed-success) ![](img.shields.io/badge/FPGA_Test-passed-success?logo=xilinx) ![](img.shields.io/badge/dependency-serial-blue) ![](img.shields.io/badge/formatter-iStyle-blue)  
+![SimTest](https://img.shields.io/badge/Sim_Test-passed-success) ![FPGATest](https://img.shields.io/badge/FPGA_Test-passed-success?logo=Xilinx) ![Dependencies](img.shields.io/badge/dependencies-riscv--gnu--toolchain_serial-blue) ![Formatter](img.shields.io/badge/formatter-iStyle-blue)  
 
-🕹️ *ProjectAris* aims at implementing a single core, single thread and RV32I based CPU in Verilog. ~~BTW it's named after [AL1S](https://bluearchive.fandom.com/wiki/Tendou_Alice) from [BlueArchive&trade;](https://bluearchive.nexon.com/home)~~.
+🕹️ *ProjectAris* aims at implementing a single core, single thread and RV32I based CPU in Verilog. 
+
+~~BTW it's named after [AL1S](https://bluearchive.fandom.com/wiki/Tendou_Alice) from [BlueArchive&trade;](https://bluearchive.nexon.com/home)~~.
 
 ## Checkpoints
 
@@ -61,7 +63,7 @@
 Test result with **100MHz** clock frequency: 
 
 | array_test1    | array_test2   | basicopt1    | bugarian    | expr               | gcd              |
-| -------------- | ------------- | ------------ | ----------- | ------------------ | ---------------- |
+|:--------------:|:-------------:|:------------:|:-----------:|:------------------:|:----------------:|
 | 0.015625s      | 0.015625s     | 0.015625     | 1.234375s   | 0.015625s          | 0.015625s        |
 | **hanoi**      | **heart**     | **looper**   | **lvalue2** | **magic**          | **manyargument** |
 | 1.218750s      | 775.7656s     | 0.015625s    | 0.015625s   | 0.031250s          | 0.000000s        |
@@ -73,14 +75,14 @@ Test result with **100MHz** clock frequency:
 Performance comparison among different clock frequencies:
 
 |        | WNS      | TNS      | WHS     | THS     | pi.c      | heart.c     |
-| ------ | -------- | -------- | ------- | ------- | --------- | ----------- |
+| ------ |:--------:|:--------:|:-------:|:-------:|:---------:|:-----------:|
 | 80MHz  | 0.872ns  | 0.000ns  | 0.079ns | 0.000ns | 2.359375s | 971.453125s |
 | 100MHz | -0.779ns | -50.13ns | 0.049ns | 0.000ns | 1.875000s | 775.765625s |
 | 120MHz | -2.421ns | -874.5ns | 0.018ns | 0.000ns | 1.531250s | 633.546875s |
 
 ## Dependencies
 
-+ [riscv-toolchain]([GitHub - riscv-collab/riscv-gnu-toolchain: GNU toolchain for RISC-V, including GCC](https://github.com/riscv-collab/riscv-gnu-toolchain)): RISC-V C and C++ cross-compiler, generating RV32I assembly code
++ [riscv-toolchain](https://github.com/riscv-collab/riscv-gnu-toolchain): RISC-V C and C++ cross-compiler, generating RV32I assembly code
 + [serial](https://github.com/wjwwood/serial): USB-serial adapters for in WSL, creating a serial connection with FPGA board
 + [iStyle](https://github.com/thomasrussellmurphy/istyle-verilog-formatter): Verilog formatter used in the early stage of this project
 + [Vivado&reg;](https://www.xilinx.com/support/download.html): Integrated development environment for FPGA device (v2022.2)
