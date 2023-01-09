@@ -1,3 +1,6 @@
 [submodule "riscv/serial"]
 	path = riscv/serial
 	url = https://github.com/wjwwood/serial.git
+[submodule "formatter"]
+	path = formatter
+	url = https://github.com/thomasrussellmurphy/istyle-verilog-formatter
