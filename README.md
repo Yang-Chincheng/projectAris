@@ -26,7 +26,7 @@
 
 <img title="cpu-design-diagram" src="docs/assets/cpu-design-final.svg" alt="cpu-design-final-version">
 
-+ RSA: RISC-V 32-bit Integer, Unprivileged (supported instruction list see [here](https://github.com/Yang-Chincheng/RISCV-Simulator-2022/tree/pipeline#readme), official spec see [here](https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMAFDQC/riscv-spec-20191213.pdf))
++ ISA: RISC-V 32-bit Integer, Unprivileged (supported instruction list see [here](https://github.com/Yang-Chincheng/RISCV-Simulator-2022/tree/pipeline#readme), official spec see [here](https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMAFDQC/riscv-spec-20191213.pdf))
 
 + Arch: Out-of-Order scheduling with speculation, using Tomasulo's algorithm
 
@@ -64,7 +64,7 @@ Test result with **100MHz** clock frequency:
 
 | array_test1    | array_test2   | basicopt1    | bugarian    | expr               | gcd              |
 |:--------------:|:-------------:|:------------:|:-----------:|:------------------:|:----------------:|
-| 0.015625s      | 0.015625s     | 0.015625     | 1.234375s   | 0.015625s          | 0.015625s        |
+| 0.015625s      | 0.015625s     | 0.015625s    | 1.234375s   | 0.015625s          | 0.015625s        |
 | **hanoi**      | **heart**     | **looper**   | **lvalue2** | **magic**          | **manyargument** |
 | 1.218750s      | 775.7656s     | 0.015625s    | 0.015625s   | 0.031250s          | 0.000000s        |
 | **multiarray** | **pi**        | **qsort**    | **queens**  | **statement_test** | **superloop**    |
@@ -83,7 +83,7 @@ Performance comparison among different clock frequencies:
 ## Dependencies
 
 + [riscv-toolchain](https://github.com/riscv-collab/riscv-gnu-toolchain): RISC-V C and C++ cross-compiler, generating RV32I assembly code
-+ [serial](https://github.com/wjwwood/serial): USB-serial adapters for in WSL, creating a serial connection with FPGA board
++ [serial](https://github.com/wjwwood/serial): USB-serial adapters for WSL, creating a serial connection with FPGA board
 + [iStyle](https://github.com/thomasrussellmurphy/istyle-verilog-formatter): Verilog formatter used in the early stage of this project
 + [Vivado&reg;](https://www.xilinx.com/support/download.html): Integrated development environment for FPGA device (v2022.2)
 
